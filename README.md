@@ -119,6 +119,10 @@ PY
 
 后端 API 说明见 `backtest/README.md`。
 
+## License
+
+MIT. See `LICENSE`.
+
 ## 微信公众号
 
-ETF量化老司机
+欢迎关注我的微信公众号：ETF量化老司机
