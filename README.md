@@ -1,6 +1,47 @@
 # BackQuant 量化回测平台
 
 本仓库包含后端（Flask + RQAlpha）与前端（Vue 3）两部分，并提供 Research 工作台（Jupyter Lab）集成能力。
+**推荐使用 Docker 安装部署**，一次性包含 Flask、Jupyter、Nginx 与前端构建产物。
+
+## Docker 安装与部署（推荐）
+
+### 安装 Docker（Ubuntu 示例）
+
+如需在其他系统安装，请参考 Docker 官方文档（`https://docs.docker.com/engine/install/`）。
+
+```bash
+sudo apt update
+sudo apt install ca-certificates curl
+sudo install -m 0755 -d /etc/apt/keyrings
+sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+sudo chmod a+r /etc/apt/keyrings/docker.asc
+
+sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/ubuntu
+Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
+Components: stable
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
+
+sudo apt update
+sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo docker run hello-world
+docker compose version
+```
+
+### 启动
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+### 访问
+
+- 前端：`http://localhost:8080`
+
+说明：后端 API 与 Jupyter 已通过同域路径反向代理（`/api`、`/jupyter`），一般无需单独访问端口。
 
 ## 目录结构
 
@@ -65,44 +106,6 @@ print(bcrypt.hashpw(b"replace_with_strong_password", bcrypt.gensalt()).decode())
 PY
 ```
 
-## Docker 安装（Ubuntu 示例）
-
-如需在其他系统安装，请参考 Docker 官方文档（`https://docs.docker.com/engine/install/`）。
-
-```bash
-sudo apt update
-sudo apt install ca-certificates curl
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
-
-sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
-Types: deb
-URIs: https://download.docker.com/linux/ubuntu
-Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
-Components: stable
-Signed-By: /etc/apt/keyrings/docker.asc
-EOF
-
-sudo apt update
-sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-sudo docker run hello-world
-docker compose version
-```
-
-## Docker 部署
-
-```bash
-cp .env.example .env
-docker compose up --build
-```
-
-默认访问：
-
-- 前端：`http://localhost:8080`
-
-说明：后端 API 与 Jupyter 已通过前端同域路径反向代理（`/api`、`/jupyter`），一般无需单独访问端口，主要用于调试或健康检查。
-
 ## Jupyter 示例
 
 - 示例 Notebook：`docs/notebooks/example.ipynb`
@@ -115,3 +118,7 @@ docker compose up --build
 ## API 文档
 
 后端 API 说明见 `backtest/README.md`。
+
+## 微信公众号
+
+ETF量化老司机

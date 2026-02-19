@@ -6,6 +6,7 @@ backtest/research/notebooks/
 backtest/.venv/
 backtest/__pycache__/
 backtest/*.py[cod]
+backtest/package-lock.json
 
 # Frontend
 frontend/node_modules/
@@ -15,6 +16,9 @@ frontend/.env.*
 frontend/.npm-cache/
 frontend/.local/
 frontend/build_log*.txt
+
+# Root env
+.env
 
 # OS / editor
 .DS_Store
