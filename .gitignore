@@ -19,5 +19,6 @@ frontend/build_log*.txt
 # OS / editor
 .DS_Store
 Thumbs.db
+._*
 .vscode/
 .idea/
