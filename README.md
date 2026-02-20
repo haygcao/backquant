@@ -15,12 +15,14 @@ sudo curl -fsSL https://get.docker.com | sh
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up --build -d
 ```
 
 ### RQAlpha 与日线数据
 
 - Docker 镜像已内置 RQAlpha（`rqalpha==6.1.2`）。
+- 镜像已预装常用量化库：`numpy`、`pandas`、`statsmodels`、`scikit-learn`（`datetime`、`math` 为 Python 标准库无需安装）。
+- 内置一个默认策略 `demo`，可直接在策略列表中运行。
 - 首次启动会自动下载 RQAlpha 日线行情数据到 `/data/rqalpha/bundle`（持久化 volume），可能需要几分钟。
 - 日线数据按月更新：容器启动时自动写入 crontab（`/etc/cron.d/rqalpha-bundle`，默认每月 1 日 03:00 运行更新任务）。
 - 如需调整更新时间，设置环境变量 `RQALPHA_BUNDLE_CRON`（例如 `0 4 1 * *`）。
@@ -32,6 +34,11 @@ docker compose up --build
 - 首次登录账号/密码：`13800138000` / `pass123456`（可在 `.env` 中修改）
 
 说明：后端 API 与 Jupyter 已通过同域路径反向代理（`/api`、`/jupyter`），一般无需单独访问端口。
+
+### 系统截图
+
+![Screenshot 1](images/screen1.png)
+![Screenshot 2](images/screen2.png)
 
 ## 二、配置说明
 
