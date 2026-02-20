@@ -1,33 +1,14 @@
 # BackQuant 量化回测平台
 
 本仓库包含后端（Flask + RQAlpha）与前端（Vue 3）两部分，并提供 Research 工作台（Jupyter Lab）集成能力。
-**推荐使用 Docker 安装部署**，一次性包含 Flask、Jupyter、Nginx 与前端构建产物。
+**推荐使用 Docker 安装部署**，一次性包含 Flask、Jupyter、Nginx 与前端构建产物，目标是镜像拉下来就能跑。
 
-## Docker 安装与部署（推荐）
+## 一、Docker 安装与部署
 
-### 安装 Docker（Ubuntu 示例）
-
-如需在其他系统安装，请参考 Docker 官方文档（`https://docs.docker.com/engine/install/`）。
+### 安装 Docker
 
 ```bash
-sudo apt update
-sudo apt install ca-certificates curl
-sudo install -m 0755 -d /etc/apt/keyrings
-sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-sudo chmod a+r /etc/apt/keyrings/docker.asc
-
-sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
-Types: deb
-URIs: https://download.docker.com/linux/ubuntu
-Suites: $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}")
-Components: stable
-Signed-By: /etc/apt/keyrings/docker.asc
-EOF
-
-sudo apt update
-sudo apt install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-sudo docker run hello-world
-docker compose version
+sudo curl -fsSL https://get.docker.com | sh
 ```
 
 ### 启动
@@ -37,21 +18,40 @@ cp .env.example .env
 docker compose up --build
 ```
 
+### RQAlpha 与日线数据
+
+- Docker 镜像已内置 RQAlpha（`rqalpha==6.1.2`）。
+- 首次启动会自动下载 RQAlpha 日线行情数据到 `/data/rqalpha/bundle`（持久化 volume），可能需要几分钟。
+- 日线数据按月更新：容器启动时自动写入 crontab（`/etc/cron.d/rqalpha-bundle`，默认每月 1 日 03:00 运行更新任务）。
+- 如需调整更新时间，设置环境变量 `RQALPHA_BUNDLE_CRON`（例如 `0 4 1 * *`）。
+- 如需关闭自动更新，设置 `RQALPHA_BUNDLE_CRON=off`。
+
 ### 访问
 
 - 前端：`http://localhost:8080`
 
 说明：后端 API 与 Jupyter 已通过同域路径反向代理（`/api`、`/jupyter`），一般无需单独访问端口。
 
-## 目录结构
+## 二、配置说明
 
-- `backtest/` 后端与回测服务
-- `frontend/` 前端页面
-- `docs/` 说明文档与示例 Notebook
+后端主要配置在 `backtest/.env.wsgi`：
 
-## 本地开发
+- `SECRET_KEY` JWT 签名密钥，必须修改
+- `LOCAL_AUTH_MOBILE` / `LOCAL_AUTH_PASSWORD` 本地登录账号密码
+- `LOCAL_AUTH_PASSWORD_HASH` 可选，bcrypt hash 优先级高于明文密码
+- `RESEARCH_NOTEBOOK_*` Jupyter 相关配置
+- 说明：Jupyter token 可不设置（空值表示不启用 token 鉴权，仅建议用于内网/本机）。
 
-### 后端
+前端支持两种方式配置 API 基址：
+
+- 构建时环境变量 `VUE_APP_API_BASE`
+- 运行时 `frontend/public/config.js`（无需重新构建）
+
+## 三、其他的
+
+### 本地开发
+
+#### 后端
 
 ```bash
 cd backtest
@@ -64,7 +64,7 @@ python3 wsgi.py
 
 默认端口：`54321`。
 
-### 前端
+#### 前端
 
 ```bash
 cd frontend
@@ -74,55 +74,23 @@ npm run serve
 
 默认端口：`8080`。
 
-### Jupyter
-
-Jupyter 安装与配置见 `docs/jupyter.md`。
-
-## 配置说明
-
-后端主要配置在 `backtest/.env.wsgi`：
-
-- `SECRET_KEY` JWT 签名密钥，必须修改
-- `LOCAL_AUTH_MOBILE` / `LOCAL_AUTH_PASSWORD` 本地登录账号密码
-- `LOCAL_AUTH_PASSWORD_HASH` 可选，bcrypt hash 优先级高于明文密码
-- `RESEARCH_NOTEBOOK_*` Jupyter 相关配置
-  说明：Jupyter token 可不设置（空值表示不启用 token 鉴权，仅建议用于内网/本机）。
-
-前端支持两种方式配置 API 基址：
-
-- 构建时环境变量 `VUE_APP_API_BASE`
-- 运行时 `frontend/public/config.js`（无需重新构建）
-
-## 安全提示
-
-- 不要提交 `.env.wsgi`、`.env` 等本地配置文件。
-- `SECRET_KEY` 必须自行生成替换。
-- 若使用 bcrypt 密码，可用以下命令生成：
-
-```bash
-python3 - <<'PY'
-import bcrypt
-print(bcrypt.hashpw(b"replace_with_strong_password", bcrypt.gensalt()).decode())
-PY
-```
-
-## Jupyter 示例
+### Jupyter 示例
 
 - 示例 Notebook：`docs/notebooks/example.ipynb`
 - 详细说明：`docs/jupyter.md`
 
-## Nginx 反代说明
+### Nginx 反代说明
 
 生产环境可参考 `docs/nginx.md`。
 
-## API 文档
+### API 文档
 
 后端 API 说明见 `backtest/README.md`。
 
-## License
+### License
 
 Apache-2.0. See `LICENSE`.
 
-## 微信公众号
+### 微信公众号
 
 欢迎关注我的微信公众号：ETF量化老司机

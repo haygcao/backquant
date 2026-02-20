@@ -8,6 +8,7 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
+        cron \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -15,7 +16,9 @@ COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY . /app
-RUN mkdir -p /app/.gunicorn
+RUN mkdir -p /app/.gunicorn \
+    && chmod +x /app/docker-entrypoint.sh
 
 EXPOSE 54321
+ENTRYPOINT ["/app/docker-entrypoint.sh"]
 CMD ["gunicorn", "-c", "gunicorn.docker.py", "wsgi:app"]

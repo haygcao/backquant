@@ -13,6 +13,8 @@ services:
       LOCAL_AUTH_USER_ID: ${LOCAL_AUTH_USER_ID:-1}
       LOCAL_AUTH_IS_ADMIN: ${LOCAL_AUTH_IS_ADMIN:-true}
       RQALPHA_BUNDLE_PATH: /data/rqalpha/bundle
+      RQALPHA_BUNDLE_BOOTSTRAP: ${RQALPHA_BUNDLE_BOOTSTRAP:-1}
+      RQALPHA_BUNDLE_CRON: "${RQALPHA_BUNDLE_CRON:-0 3 1 * *}"
       BACKTEST_BASE_DIR: /data/backtest
       BACKTEST_RENAME_DB_PATH: /data/backtest/backtest_meta.sqlite3
       RESEARCH_NOTEBOOK_ROOT_DIR: /data/notebooks
@@ -34,6 +36,8 @@ services:
     image: backquant-backend
     environment:
       JUPYTER_TOKEN: ${JUPYTER_TOKEN:-}
+      RQALPHA_BUNDLE_BOOTSTRAP: "0"
+      RQALPHA_BUNDLE_CRON: "off"
     command: >
       jupyter lab --ip=0.0.0.0 --port=8888 --no-browser
       --ServerApp.base_url=/jupyter
