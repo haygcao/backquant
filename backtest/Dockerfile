@@ -8,12 +8,17 @@ WORKDIR /app
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         build-essential \
+        ca-certificates \
         cron \
         curl \
+        libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
+
+ENV RQALPHA_IMAGE_BUNDLE_PATH=/opt/rqalpha/bundle
+RUN mkdir -p /opt/rqalpha/bundle
 
 COPY . /app
 RUN mkdir -p /app/.gunicorn \

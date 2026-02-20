@@ -155,31 +155,20 @@ import {
   syncStrategyRenameMap
 } from '@/utils/strategyRenameMap';
 
-const DEFAULT_TEMPLATE = `# RQAlpha 默认策略骨架
+const DEFAULT_TEMPLATE = `# RQAlpha 默认策略示例
 from rqalpha.api import *
 
 def init(context):
-    # 在这里初始化全局变量、订阅标的
+    # 选择一个股票（平安银行）
     context.s1 = "000001.XSHE"
 
-def before_trading(context):
-    # 开盘前执行一次，可用于重置状态
-    pass
-
 def handle_bar(context, bar_dict):
-    # 每个 bar 触发一次（分钟/日级）
-    bar = bar_dict.get(context.s1)
-    if bar is None:
-        return
+    # 如果当前没有持仓
+    position = context.portfolio.positions[context.s1]
 
-    position = context.portfolio.positions[context.s1].quantity
-    if position == 0:
-        # 示例：无持仓时买入 100 股
-        order_shares(context.s1, 100)
-
-def after_trading(context):
-    # 收盘后执行一次
-    pass
+    if position.quantity == 0:
+        # 用全部资金买入
+        order_percent(context.s1, 1.0)
 `;
 function unwrapDataPayload(payload) {
   if (!payload || typeof payload !== 'object') {

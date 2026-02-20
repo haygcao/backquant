@@ -102,6 +102,7 @@ rpds-py==0.30.0
 rqalpha==6.1.2
 rqrisk==1.0.13
 scipy==1.17.0
+scikit-learn==1.5.2
 Send2Trash==2.1.0
 simplejson==3.20.2
 six==1.17.0
