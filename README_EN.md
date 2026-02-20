@@ -15,12 +15,14 @@ sudo curl -fsSL https://get.docker.com | sh
 
 ```bash
 cp .env.example .env
-docker compose up --build
+docker compose up --build -d
 ```
 
 ### RQAlpha & Daily Bundle Data
 
 - The Docker image already includes RQAlpha (`rqalpha==6.1.2`).
+- The image also preinstalls common quant libraries: `numpy`, `pandas`, `statsmodels`, `scikit-learn` (`datetime`/`math` are Python standard libraries).
+- A default `demo` strategy is preloaded and can be run directly from the strategy list.
 - On first start, the RQAlpha daily data bundle is downloaded to `/data/rqalpha/bundle` (a persistent volume). This may take a few minutes.
 - The daily bundle is updated monthly: on container start, a cron entry is created (`/etc/cron.d/rqalpha-bundle`, default is 03:00 on the 1st of each month).
 - To change the schedule, set `RQALPHA_BUNDLE_CRON` (for example `0 4 1 * *`).
@@ -32,6 +34,11 @@ docker compose up --build
 - First login credentials: `13800138000` / `pass123456` (change in `.env`)
 
 Note: Backend API and Jupyter are reverse-proxied under the same domain (`/api`, `/jupyter`), so you typically do not need to access their ports directly.
+
+### Screenshots
+
+![Screenshot 1](images/screen1.png)
+![Screenshot 2](images/screen2.png)
 
 ## II. Configuration
 
