@@ -11,6 +11,12 @@
 sudo curl -fsSL https://get.docker.com | sh
 ```
 
+### 安装前注意事项
+
+1. **RQAlpha 行情数据时间范围为 200501 至 202602**，压缩包约 1G，下载解压耗时较长。
+2. **Docker 构建完成后需等待行情下载完成才能登录**。
+3. **系统运行请至少准备 5G 硬盘空间**。
+
 ### 安装与启动（Docker Compose）
 
 Docker Compose 默认使用 named volume 持久化 RQAlpha bundle（`rqalpha_bundle`）。下载逻辑在容器 entrypoint 内完成：
@@ -26,8 +32,6 @@ docker compose up --build -d
 - Docker 镜像已内置 RQAlpha（`rqalpha==6.1.2`）。
 - 镜像已预装常用量化库：`numpy`、`pandas`、`statsmodels`、`scikit-learn`（`datetime`、`math` 为 Python 标准库无需安装）。
 - 内置一个默认策略 `demo`，可直接在策略列表中运行。
-- 容器首次启动会自动下载 bundle 到 `/data/rqalpha/bundle`（持久化 volume），可能需要几分钟。
-- 日行情数据范围为 200501 至 202602，压缩包约 1G，下载解压耗时较长；Docker 构建完成后需等待行情下载完成才能登录。
 - 日线数据按月更新：容器启动时自动写入 crontab（`/etc/cron.d/rqalpha-bundle`，默认每月 1 日 03:00 运行更新任务）。
 - 如需调整更新时间，设置环境变量 `RQALPHA_BUNDLE_CRON`（例如 `0 4 1 * *`）。
 - 如需关闭自动更新，设置 `RQALPHA_BUNDLE_CRON=off`。

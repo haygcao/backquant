@@ -50,11 +50,11 @@
     </div>
 
     <transition name="modal-fade">
-      <div v-if="showBundleModal" class="bundle-modal-overlay" @click.self="closeBundleModal">
+      <div v-if="showBundleModal" class="bundle-modal-overlay">
         <div class="bundle-modal" role="dialog" aria-modal="true" aria-labelledby="bundle-modal-title">
           <div class="bundle-modal-header">
             <div class="bundle-modal-title" id="bundle-modal-title">系统初始化中</div>
-            <button type="button" class="bundle-modal-close" @click="closeBundleModal">×</button>
+            <span class="bundle-modal-badge">初始化进行中</span>
           </div>
           <div class="bundle-modal-body">
             <div class="bundle-modal-icon" aria-hidden="true"></div>
@@ -67,9 +67,9 @@
             <p v-else class="bundle-modal-progress muted">
               正在获取下载进度...
             </p>
-          </div>
-          <div class="bundle-modal-footer">
-            <button type="button" class="bundle-modal-action" @click="closeBundleModal">知道了</button>
+            <div class="bundle-modal-tip">
+              请保持页面开启，下载完成后会自动进入登录流程。
+            </div>
           </div>
         </div>
       </div>
@@ -99,7 +99,7 @@ export default {
       bundleProgressText: '',
       bundlePollTimer: null,
       bundlePollFailures: 0,
-      pendingLogin: false,
+      pendingRouteAfterBundle: false,
       loginInProgress: false
     };
   },
@@ -136,7 +136,7 @@ export default {
     },
     closeBundleModal() {
       this.showBundleModal = false;
-      this.pendingLogin = false;
+      this.pendingRouteAfterBundle = false;
       this.stopBundlePolling();
     },
     startBundlePolling() {
@@ -163,6 +163,10 @@ export default {
       }
       return `${size.toFixed(size >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
     },
+    isBundleReady(payload) {
+      if (!payload || typeof payload !== 'object') return false;
+      return payload.status === 'ready';
+    },
     async fetchBundleProgress() {
       const endpoint = `${API_BASE_URL}/api/system/bundle-status`;
       try {
@@ -172,14 +176,27 @@ export default {
         const percent = Number(progress.percent);
         const downloaded = Number(progress.downloaded_bytes);
         const total = Number(progress.total_bytes);
+        const extracted = Number(progress.extracted_bytes);
         if (payload.status === 'failed') {
           this.bundleProgressText = payload.message || '行情数据下载失败，请检查网络后重试。';
           this.stopBundlePolling();
           return;
         }
 
-        if (Number.isFinite(percent)) {
-          this.bundleProgressText = `下载进度：${percent.toFixed(1)}%`;
+        if (typeof payload.message === 'string' && payload.message.trim() === 'bundle extracting') {
+          if (Number.isFinite(extracted) && extracted > 0) {
+            this.bundleProgressText = `下载完成，正在解压中...（已解压 ${this.formatBytes(extracted)}）`;
+          } else {
+            this.bundleProgressText = '下载完成，正在解压中...';
+          }
+        } else if (Number.isFinite(percent)) {
+          if (Number.isFinite(downloaded) && Number.isFinite(total) && total > 0) {
+            this.bundleProgressText = `下载进度：${percent.toFixed(1)}%（${this.formatBytes(downloaded)} / ${this.formatBytes(total)}）`;
+          } else if (Number.isFinite(total) && total > 0) {
+            this.bundleProgressText = `下载进度：${percent.toFixed(1)}%（总计 ${this.formatBytes(total)}）`;
+          } else {
+            this.bundleProgressText = `下载进度：${percent.toFixed(1)}%`;
+          }
         } else if (Number.isFinite(downloaded) && Number.isFinite(total) && total > 0) {
           this.bundleProgressText = `已下载 ${this.formatBytes(downloaded)} / ${this.formatBytes(total)}`;
         } else if (Number.isFinite(downloaded) && downloaded > 0) {
@@ -189,13 +206,13 @@ export default {
         } else {
           this.bundleProgressText = '';
         }
-        if (payload.status === 'ready') {
+        if (this.isBundleReady(payload)) {
           this.bundleProgressText = '行情数据已准备完成，可以登录。';
           this.stopBundlePolling();
           this.showBundleModal = false;
-          if (this.pendingLogin) {
-            this.pendingLogin = false;
-            await this.performLogin();
+          if (this.pendingRouteAfterBundle) {
+            this.pendingRouteAfterBundle = false;
+            await this.$router.replace({ name: 'strategies' });
           }
         }
       } catch (err) {
@@ -210,19 +227,6 @@ export default {
       const endpoint = `${API_BASE_URL}/api/system/bundle-status`;
       const response = await axiosInstance.get(endpoint, { timeout: 5000 });
       return response?.data || {};
-    },
-    async ensureBundleReadyForLogin() {
-      try {
-        const payload = await this.getBundleStatus();
-        if (payload.status === 'ready') {
-          return true;
-        }
-      } catch (err) {
-        // Fall through to show modal and poll.
-      }
-      this.pendingLogin = true;
-      this.openBundleModal();
-      return false;
     },
     async performLogin() {
       if (this.loginInProgress) return;
@@ -266,7 +270,13 @@ export default {
         this.showSuccess = true;
         this.isAuthenticated = true;
 
-        await this.$router.replace({ name: 'strategies' });
+        const payload = await this.getBundleStatus();
+        if (this.isBundleReady(payload)) {
+          await this.$router.replace({ name: 'strategies' });
+        } else {
+          this.pendingRouteAfterBundle = true;
+          this.openBundleModal();
+        }
       } catch (err) {
         if (err.response) {
           const status = err.response.status;
@@ -275,18 +285,14 @@ export default {
           } else if (status === 400) {
             this.error = '请求参数错误';
           } else if (status === 502 || status === 503 || status === 504) {
-            this.error = null;
-            this.pendingLogin = true;
-            this.openBundleModal();
+            this.error = '服务暂不可用，请稍后重试';
           } else if (status === 500) {
             this.error = '服务器内部错误';
           } else {
             this.error = `登录失败，状态码：${status}`;
           }
         } else if (err.request) {
-          this.error = null;
-          this.pendingLogin = true;
-          this.openBundleModal();
+          this.error = '网络异常，请稍后重试';
         } else {
           this.error = '登录失败，请稍后重试';
         }
@@ -298,11 +304,6 @@ export default {
     async handleLogin() {
       if (this.loginInProgress) return;
       this.error = null;
-      const ready = await this.ensureBundleReadyForLogin();
-      if (!ready) {
-        this.isLoading = false;
-        return;
-      }
       await this.performLogin();
     }
   }
@@ -438,9 +439,10 @@ button:disabled {
 
 .bundle-modal-header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px 10px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 18px 20px 12px;
   border-bottom: 1px solid #eef2f7;
 }
 
@@ -450,13 +452,15 @@ button:disabled {
   color: #0f172a;
 }
 
-.bundle-modal-close {
-  background: transparent;
-  border: none;
-  font-size: 20px;
-  line-height: 1;
-  color: #64748b;
-  cursor: pointer;
+.bundle-modal-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(31, 111, 235, 0.12);
+  color: #1f6feb;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .bundle-modal-body {
@@ -491,19 +495,14 @@ button:disabled {
   color: #64748b;
 }
 
-.bundle-modal-footer {
-  padding: 0 20px 20px;
-  display: flex;
-  justify-content: center;
-}
-
-.bundle-modal-action {
-  background: #1f6feb;
-  color: #ffffff;
-  border: none;
-  border-radius: 8px;
-  padding: 8px 18px;
-  cursor: pointer;
+.bundle-modal-tip {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .modal-fade-enter-active,
