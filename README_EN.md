@@ -40,7 +40,7 @@ docker compose up --build -d
 ### Access
 
 - Frontend: `http://localhost:8088`
-- First login credentials: `13800138000` / `pass123456` (change in `.env`)
+- First login credentials: `admin` / `pass123456` (change in `.env`)
 
 Note: Backend API and Jupyter are reverse-proxied under the same domain (`/api`, `/jupyter`), so you typically do not need to access their ports directly.
 
@@ -54,8 +54,9 @@ Note: Backend API and Jupyter are reverse-proxied under the same domain (`/api`,
 Backend configuration is mainly in `backtest/.env.wsgi`:
 
 - `SECRET_KEY` JWT signing key, must be changed
-- `LOCAL_AUTH_MOBILE` / `LOCAL_AUTH_PASSWORD` local login credentials
+- `LOCAL_AUTH_MOBILE` / `LOCAL_AUTH_PASSWORD` default admin username/password (seeded into the auth database)
 - `LOCAL_AUTH_PASSWORD_HASH` optional, bcrypt hash overrides plaintext password
+- `AUTH_DB_PATH` optional, auth database path (defaults to `<BACKTEST_BASE_DIR>/auth.sqlite3`)
 - `RESEARCH_NOTEBOOK_*` Jupyter-related settings
 - Note: Jupyter token can be empty (empty means token auth disabled; only recommended for LAN/local use).
 

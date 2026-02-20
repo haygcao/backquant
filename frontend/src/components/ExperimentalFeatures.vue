@@ -11,12 +11,12 @@
       </div>
 
       <form class="login-form" @submit.prevent="handleLogin">
-        <label class="field-label" for="mobile">手机号</label>
+        <label class="field-label" for="username">用户名</label>
         <input
-          id="mobile"
-          v-model.trim="formData.mobile"
-          type="tel"
-          placeholder="请输入手机号"
+          id="username"
+          v-model.trim="formData.username"
+          type="text"
+          placeholder="请输入用户名"
           required
           :disabled="isLoading"
         >
@@ -88,7 +88,7 @@ export default {
     return {
       isAuthenticated: false,
       formData: {
-        mobile: '',
+        username: '',
         password: '',
         rememberPassword: false
       },
@@ -118,11 +118,11 @@ export default {
       }
     },
     checkSavedPassword() {
-      const savedMobile = localStorage.getItem('savedMobile');
+      const savedUsername = localStorage.getItem('savedUsername');
       const savedPassword = localStorage.getItem('savedPassword');
 
-      if (savedMobile && savedPassword) {
-        this.formData.mobile = savedMobile;
+      if (savedUsername && savedPassword) {
+        this.formData.username = savedUsername;
         this.formData.password = savedPassword;
         this.formData.rememberPassword = true;
       }
@@ -236,7 +236,7 @@ export default {
 
       try {
         const formData = new URLSearchParams();
-        formData.append('mobile', this.formData.mobile);
+        formData.append('username', this.formData.username);
         formData.append('password', this.formData.password);
 
         const response = await axiosInstance.post(API_ENDPOINTS.LOGIN, formData, {
@@ -258,10 +258,10 @@ export default {
         }
 
         if (this.formData.rememberPassword) {
-          localStorage.setItem('savedMobile', this.formData.mobile);
+          localStorage.setItem('savedUsername', this.formData.username);
           localStorage.setItem('savedPassword', this.formData.password);
         } else {
-          localStorage.removeItem('savedMobile');
+          localStorage.removeItem('savedUsername');
           localStorage.removeItem('savedPassword');
         }
 
@@ -361,7 +361,7 @@ export default {
   font-size: 13px;
 }
 
-.login-form input[type='tel'],
+.login-form input[type='text'],
 .login-form input[type='password'] {
   width: 100%;
   border: 1px solid #dcdfe6;

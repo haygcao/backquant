@@ -40,7 +40,7 @@ docker compose up --build -d
 ### 访问
 
 - 前端：`http://localhost:8088`
-- 首次登录账号/密码：`13800138000` / `pass123456`（可在 `.env` 中修改）
+- 首次登录账号/密码：`admin` / `pass123456`（可在 `.env` 中修改）
 
 说明：后端 API 与 Jupyter 已通过同域路径反向代理（`/api`、`/jupyter`），一般无需单独访问端口。
 
@@ -55,8 +55,9 @@ docker compose up --build -d
 后端主要配置在 `backtest/.env.wsgi`：
 
 - `SECRET_KEY` JWT 签名密钥，必须修改
-- `LOCAL_AUTH_MOBILE` / `LOCAL_AUTH_PASSWORD` 本地登录账号密码
+- `LOCAL_AUTH_MOBILE` / `LOCAL_AUTH_PASSWORD` 默认管理员用户名/密码（首次初始化写入数据库）
 - `LOCAL_AUTH_PASSWORD_HASH` 可选，bcrypt hash 优先级高于明文密码
+- `AUTH_DB_PATH` 可选，认证数据库路径（默认 `<BACKTEST_BASE_DIR>/auth.sqlite3`）
 - `RESEARCH_NOTEBOOK_*` Jupyter 相关配置
 - 说明：Jupyter token 可不设置（空值表示不启用 token 鉴权，仅建议用于内网/本机）。
 

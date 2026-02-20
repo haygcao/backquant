@@ -61,6 +61,7 @@ class Config:
     LOCAL_AUTH_PASSWORD_HASH = os.environ.get("LOCAL_AUTH_PASSWORD_HASH", "")
     LOCAL_AUTH_USER_ID = _int_from_env("LOCAL_AUTH_USER_ID", 1)
     LOCAL_AUTH_IS_ADMIN = _bool_from_env("LOCAL_AUTH_IS_ADMIN", True)
+    AUTH_DB_PATH = _str_from_env("AUTH_DB_PATH", "")
     RQALPHA_BUNDLE_PATH = _abs_path_from_env(
         "RQALPHA_BUNDLE_PATH",
         "/home/app/.rqalpha/bundle",
