@@ -2,13 +2,12 @@
   <div class="app-shell">
     <header class="top-nav">
       <button class="brand" type="button" @click="goHome">
-        <span class="brand-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M4 19h16 M7 14l3-3 3 2 4-5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M5 7h4v7H5z M10 9h4v5h-4z M15 5h4v9h-4z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </span>
-        <span class="brand-title">量化回测平台</span>
+        <img
+          src="@/assets/backquant-logo.svg"
+          alt="BackQuant logo"
+          class="brand-logo"
+        >
+        <span class="brand-title">BackQuant</span>
       </button>
 
       <nav class="top-links">
@@ -240,20 +239,10 @@ body {
   padding: 0;
 }
 
-.brand-icon {
-  width: 24px;
-  height: 24px;
-  color: var(--accent);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #ecf3ff;
-  border-radius: 7px;
-}
-
-.brand-icon svg {
-  width: 16px;
-  height: 16px;
+.brand-logo {
+  width: 28px;
+  height: 28px;
+  display: block;
 }
 
 .brand-title {
@@ -261,6 +250,7 @@ body {
   font-weight: 700;
   letter-spacing: 0.2px;
   color: var(--text-primary);
+  font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
 }
 
 .top-links {

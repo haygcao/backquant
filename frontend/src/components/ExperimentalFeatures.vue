@@ -2,13 +2,12 @@
   <div class="login-page">
     <div class="login-card">
       <div class="system-brand">
-        <span class="system-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none">
-            <path d="M4 19h16 M7 14l3-3 3 2 4-5" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
-            <path d="M5 7h4v7H5z M10 9h4v5h-4z M15 5h4v9h-4z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </span>
-        <span class="system-name">量化回测平台</span>
+        <img
+          src="@/assets/backquant-logo.svg"
+          alt="BackQuant logo"
+          class="system-logo"
+        >
+        <span class="system-name">BackQuant</span>
       </div>
 
       <form class="login-form" @submit.prevent="handleLogin">
@@ -42,7 +41,7 @@
         </label>
 
         <p v-if="error" class="message error">{{ error }}</p>
-        <p v-if="showSuccess" class="message success">登录成功，正在进入量化回测平台...</p>
+        <p v-if="showSuccess" class="message success">登录成功，正在进入 BackQuant...</p>
 
         <button type="submit" :disabled="isLoading">
           {{ isLoading ? '登录中...' : '登录' }}
@@ -186,19 +185,16 @@ export default {
   font-weight: 700;
 }
 
-.system-icon {
-  width: 24px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 7px;
-  background: #ecf3ff;
+.system-logo {
+  width: 36px;
+  height: 36px;
+  display: block;
 }
 
-.system-icon svg {
-  width: 16px;
-  height: 16px;
+.system-name {
+  font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
+  font-size: 18px;
+  letter-spacing: 0.3px;
 }
 
 .login-form {

@@ -38,6 +38,7 @@ services:
       RQALPHA_BUNDLE_CRON: "off"
     command: >
       jupyter lab --ip=0.0.0.0 --port=8888 --no-browser
+      --allow-root
       --ServerApp.base_url=/jupyter
       --ServerApp.root_dir=/data/notebooks
       --ServerApp.token=${JUPYTER_TOKEN:-}
