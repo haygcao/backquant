@@ -7,6 +7,7 @@ from pathlib import Path
 from flask import Blueprint, current_app, jsonify, request
 
 from app.auth import generate_auth_token
+from app.api.system_api import bundle_status as _bundle_status
 
 bp_login = Blueprint("bp_login", __name__)
 
@@ -172,5 +173,12 @@ def api_login():
         return _error_response(400, "INVALID_ARGUMENT", "username and password are required")
     bundle_path = Path(current_app.config.get("RQALPHA_BUNDLE_PATH") or "").expanduser()
     if not bundle_path or not _bundle_is_ready(bundle_path):
-        return _error_response(503, "BUNDLE_NOT_READY", "bundle is downloading")
+        status_response = _bundle_status()
+        status_payload = status_response.get_json(silent=True) if status_response else None
+        payload = {
+            "code": "BUNDLE_NOT_READY",
+            "message": "bundle is downloading",
+            "bundle_status": status_payload or {},
+        }
+        return jsonify(payload), 200
     return _db_login(username, password)

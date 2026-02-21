@@ -10,13 +10,22 @@
         <span class="system-name">BackQuant</span>
       </div>
 
-      <form class="login-form" @submit.prevent="handleLogin">
+      <form
+        class="login-form"
+        autocomplete="on"
+        method="post"
+        action="/api/login"
+        @submit.prevent="handleLogin"
+      >
         <label class="field-label" for="username">用户名</label>
         <input
           id="username"
+          name="username"
           v-model.trim="formData.username"
           type="text"
           placeholder="请输入用户名"
+          autocomplete="username"
+          autocapitalize="none"
           required
           :disabled="isLoading"
         >
@@ -24,9 +33,11 @@
         <label class="field-label" for="password">密码</label>
         <input
           id="password"
+          name="password"
           v-model="formData.password"
           type="password"
           placeholder="请输入密码"
+          autocomplete="current-password"
           required
           :disabled="isLoading"
         >
@@ -54,7 +65,6 @@
         <div class="bundle-modal" role="dialog" aria-modal="true" aria-labelledby="bundle-modal-title">
           <div class="bundle-modal-header">
             <div class="bundle-modal-title" id="bundle-modal-title">系统初始化中</div>
-            <span class="bundle-modal-badge">初始化进行中</span>
           </div>
           <div class="bundle-modal-body">
             <div class="bundle-modal-icon" aria-hidden="true"></div>
@@ -100,6 +110,7 @@ export default {
       bundlePollTimer: null,
       bundlePollFailures: 0,
       pendingRouteAfterBundle: false,
+      pendingLoginAfterBundle: false,
       loginInProgress: false
     };
   },
@@ -119,11 +130,11 @@ export default {
     },
     checkSavedPassword() {
       const savedUsername = localStorage.getItem('savedUsername');
-      const savedPassword = localStorage.getItem('savedPassword');
-
-      if (savedUsername && savedPassword) {
+      if (localStorage.getItem('savedPassword')) {
+        localStorage.removeItem('savedPassword');
+      }
+      if (savedUsername) {
         this.formData.username = savedUsername;
-        this.formData.password = savedPassword;
         this.formData.rememberPassword = true;
       }
     },
@@ -210,7 +221,10 @@ export default {
           this.bundleProgressText = '行情数据已准备完成，可以登录。';
           this.stopBundlePolling();
           this.showBundleModal = false;
-          if (this.pendingRouteAfterBundle) {
+          if (this.pendingLoginAfterBundle) {
+            this.pendingLoginAfterBundle = false;
+            await this.performLogin();
+          } else if (this.pendingRouteAfterBundle) {
             this.pendingRouteAfterBundle = false;
             await this.$router.replace({ name: 'strategies' });
           }
@@ -245,6 +259,14 @@ export default {
           }
         });
 
+        if (response.status === 200 && response.data && response.data.code === 'BUNDLE_NOT_READY') {
+          this.showSuccess = false;
+          this.pendingRouteAfterBundle = false;
+          this.pendingLoginAfterBundle = true;
+          this.openBundleModal();
+          return;
+        }
+
         if (response.status !== 200 || !response.data || !response.data.token || !response.data.userid) {
           this.error = '登录响应数据格式错误';
           return;
@@ -259,10 +281,8 @@ export default {
 
         if (this.formData.rememberPassword) {
           localStorage.setItem('savedUsername', this.formData.username);
-          localStorage.setItem('savedPassword', this.formData.password);
         } else {
           localStorage.removeItem('savedUsername');
-          localStorage.removeItem('savedPassword');
         }
 
         axiosInstance.defaults.headers.common.Authorization = response.data.token;
