@@ -151,7 +151,14 @@ export default {
       if (currentPath === path) {
         return true;
       }
-      return currentPath.startsWith(`${path}/`);
+      if (currentPath.startsWith(`${path}/`)) {
+        return true;
+      }
+      // 回测历史和策略编辑页面也属于回测工作台
+      if (path === '/strategies' && (currentPath.startsWith('/backtest/') || currentPath.startsWith('/backtests/'))) {
+        return true;
+      }
+      return false;
     },
     goHome() {
       this.$router.push(this.isAuthenticated ? '/strategies' : '/login');
@@ -185,9 +192,28 @@ export default {
   --surface: #ffffff;
   --text-primary: #243247;
   --text-secondary: #5f6f86;
+  --text-tertiary: #8b95a8;
   --border: #dfe7f2;
+  --border-light: #eef3f9;
   --accent: #1f6feb;
+  --accent-hover: #1a5cd7;
   --accent-soft: #eaf2ff;
+  --accent-softer: #f4f8ff;
+  --success: #10b981;
+  --success-soft: #d1fae5;
+  --warning: #f59e0b;
+  --warning-soft: #fef3c7;
+  --danger: #ef4444;
+  --danger-soft: #fee2e2;
+  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.1);
+  --shadow-lg: 0 10px 30px rgba(15, 23, 42, 0.12);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
@@ -202,12 +228,15 @@ body,
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', sans-serif;
   color: var(--text-primary);
   background:
-    radial-gradient(circle at 10% 5%, #eaf2ff 0, rgba(234, 242, 255, 0) 38%),
-    radial-gradient(circle at 90% 0%, #fef4e8 0, rgba(254, 244, 232, 0) 28%),
+    radial-gradient(circle at 10% 5%, #eaf2ff 0, rgba(234, 242, 255, 0) 40%),
+    radial-gradient(circle at 90% 0%, #fef4e8 0, rgba(254, 244, 232, 0) 30%),
+    radial-gradient(circle at 50% 100%, #f0f9ff 0, rgba(240, 249, 255, 0) 35%),
     var(--bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .app-shell {
@@ -218,15 +247,14 @@ body {
   position: sticky;
   top: 0;
   z-index: 120;
-  height: 64px;
+  height: 48px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 0 18px;
-  border-bottom: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
+  gap: 12px;
+  padding: 0 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fff;
 }
 
 .brand {
@@ -246,10 +274,10 @@ body {
 }
 
 .brand-title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.2px;
-  color: var(--text-primary);
+  color: #000;
   font-family: "Space Grotesk", "Avenir Next", "Segoe UI", sans-serif;
 }
 
@@ -264,19 +292,20 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 34px;
+  min-height: 32px;
   padding: 0 12px;
-  border-radius: 999px;
+  border-radius: 2px;
   border: 1px solid transparent;
-  color: var(--text-secondary);
+  color: #666;
   text-decoration: none;
   white-space: nowrap;
-  transition: all 0.2s ease;
+  font-weight: 500;
+  font-size: 13px;
 }
 
 .top-link:hover {
-  color: var(--accent);
-  background: var(--accent-soft);
+  color: #000;
+  background: #f5f5f5;
 }
 
 .nav-icon {
@@ -286,9 +315,10 @@ body {
 }
 
 .top-link.is-active {
-  color: var(--accent);
-  border-color: #cfe1ff;
-  background: var(--accent-soft);
+  color: #000;
+  border-color: #d0d0d0;
+  background: #f0f0f0;
+  font-weight: 600;
 }
 
 .top-link.is-disabled {
@@ -300,9 +330,9 @@ body {
 .link-badge {
   font-size: 11px;
   padding: 1px 6px;
-  border-radius: 999px;
-  border: 1px solid #d5deea;
-  color: #7b8798;
+  border-radius: 2px;
+  border: 1px solid #d0d0d0;
+  color: #666;
 }
 
 .top-actions {
@@ -316,30 +346,32 @@ body {
 .auth-pill {
   display: inline-flex;
   align-items: center;
-  height: 26px;
-  border-radius: 999px;
-  padding: 0 9px;
+  height: 28px;
+  border-radius: 2px;
+  padding: 0 12px;
   font-size: 12px;
-  color: #1f6feb;
-  background: var(--accent-soft);
-  border: 1px solid #cfe1ff;
+  font-weight: 600;
+  color: #000;
+  background: #f0f0f0;
+  border: 1px solid #d0d0d0;
 }
 
 .logout-btn {
-  border: 1px solid #d5deea;
+  border: 1px solid #d0d0d0;
   background: #fff;
-  color: var(--text-secondary);
-  border-radius: 8px;
+  color: #000;
+  border-radius: 2px;
   height: 32px;
   padding: 0 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  font-weight: 500;
+  font-size: 12px;
 }
 
 .logout-btn:hover {
-  color: var(--accent);
-  border-color: #bdd5ff;
-  background: var(--accent-soft);
+  color: #000;
+  border-color: #b0b0b0;
+  background: #f5f5f5;
 }
 
 .app-layout {
@@ -349,10 +381,11 @@ body {
 
 .sidebar {
   width: 220px;
-  border-right: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(4px);
-  padding: 14px 12px;
+  border-right: 1px solid var(--border-light);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px) saturate(180%);
+  padding: 16px 12px;
+  box-shadow: inset -1px 0 0 rgba(31, 111, 235, 0.05);
 }
 
 .sidebar-title {
@@ -376,23 +409,43 @@ body {
   gap: 8px;
   text-decoration: none;
   color: var(--text-secondary);
-  border-radius: 10px;
-  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  padding: 11px 14px;
   border: 1px solid transparent;
-  transition: all 0.2s ease;
+  font-weight: 500;
+  transition: all var(--transition-base);
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar-link::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 0;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+  transition: height var(--transition-base);
 }
 
 .sidebar-link:hover {
   color: var(--accent);
-  border-color: #d6e4ff;
-  background: #f4f8ff;
+  background: var(--accent-softer);
+  transform: translateX(2px);
 }
 
 .sidebar-link.is-active {
   color: var(--accent);
-  border-color: #cfe1ff;
-  background: var(--accent-soft);
+  background: linear-gradient(135deg, var(--accent-soft) 0%, var(--accent-softer) 100%);
   font-weight: 600;
+  box-shadow: 0 2px 8px rgba(31, 111, 235, 0.1);
+}
+
+.sidebar-link.is-active::before {
+  height: 60%;
 }
 
 .app-main {

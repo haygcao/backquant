@@ -1,45 +1,36 @@
 <template>
   <div class="strategies-page">
-    <header class="page-header">
-      <div class="page-title">
-        <h2>策略管理</h2>
-        <span class="page-sub">集中管理策略，编辑后可发起回测任务。</span>
-      </div>
-
-      <div class="header-actions">
-        <div class="search-wrap">
-          <input
-            v-model.trim="keyword"
-            class="text-input"
-            type="text"
-            placeholder="搜索策略名"
-          >
+    <div class="page-container">
+      <div class="page-header">
+        <div class="title-section">
+          <h2>策略管理</h2>
+          <span class="meta">{{ filteredRows.length }} 条</span>
+          <span v-if="selectedIds.length" class="meta selected">已选 {{ selectedIds.length }} 条</span>
         </div>
 
-        <button class="btn btn-secondary" :disabled="loading" @click="fetchList(false)">
-          {{ loading ? '刷新中...' : '刷新' }}
-        </button>
-        <button class="btn btn-danger" type="button" :disabled="!selectedIds.length || !!deletingId" @click="handleBatchDelete">
-          {{ deletingId === '__batch__' ? '删除中...' : `批量删除（${selectedIds.length}）` }}
-        </button>
-        <button class="btn btn-primary" @click="handleCreateStrategy">
-          新建策略
-        </button>
-      </div>
-    </header>
-
-    <section class="content-card">
-      <div class="card-header">
-        <div class="card-title">
-          <h3>策略列表</h3>
-          <div class="table-actions">
-            <span class="meta">{{ filteredRows.length }} 条</span>
-            <span v-if="selectedIds.length" class="meta">已选 {{ selectedIds.length }} 条</span>
+        <div class="actions-section">
+          <div class="search-wrap">
+            <input
+              v-model.trim="keyword"
+              class="text-input"
+              type="text"
+              placeholder="搜索策略名"
+            >
           </div>
+
+          <button class="btn btn-secondary" :disabled="loading" @click="fetchList(false)">
+            {{ loading ? '刷新中...' : '刷新' }}
+          </button>
+          <button class="btn btn-danger" type="button" :disabled="!selectedIds.length || !!deletingId" @click="handleBatchDelete">
+            {{ deletingId === '__batch__' ? '删除中...' : `批量删除（${selectedIds.length}）` }}
+          </button>
+          <button class="btn btn-primary" @click="handleCreateStrategy">
+            新建策略
+          </button>
         </div>
       </div>
 
-      <div class="card-body">
+      <div class="page-body">
         <div v-if="errorMessage" class="inline-error">
           {{ errorMessage }}
         </div>
@@ -48,7 +39,7 @@
           <table class="table">
             <thead>
               <tr>
-                <th class="check-col" style="width: 6%">
+                <th class="check-col" style="width: 5%">
                   <input
                     class="row-checkbox"
                     type="checkbox"
@@ -59,16 +50,36 @@
                     @change="toggleSelectAllOnPage($event)"
                   >
                 </th>
-                <th style="width: 24%">名称</th>
-                <th style="width: 18%">创建时间</th>
-                <th style="width: 18%">最后修改</th>
-                <th style="width: 34%">操作</th>
+                <th style="width: 30%">名称</th>
+                <th style="width: 20%">创建时间</th>
+                <th style="width: 20%">最后修改</th>
+                <th style="width: 25%">操作</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-if="!pagedRows.length">
+              <tr v-if="editingNewRow" class="new-row">
+                <td class="row-select-cell"></td>
+                <td class="mono">
+                  <input
+                    ref="newStrategyInput"
+                    v-model="newStrategyName"
+                    class="inline-input"
+                    type="text"
+                    placeholder="输入策略名称（支持中文、字母、数字、下划线、中横线）"
+                    @keydown="handleNewStrategyKeydown"
+                  >
+                </td>
+                <td colspan="2" class="new-row-hint">
+                  <span class="hint-text">输入策略名称后点击确认</span>
+                </td>
+                <td class="row-actions">
+                  <button class="btn btn-mini btn-primary" type="button" @click="confirmNewStrategy">确认</button>
+                  <button class="btn btn-mini btn-secondary" type="button" @click="cancelNewStrategy">取消</button>
+                </td>
+              </tr>
+              <tr v-if="!pagedRows.length && !editingNewRow">
                 <td colspan="5" class="empty-cell">
-                  {{ loading ? '加载中...' : '暂无策略（可点击“新建策略”）' }}
+                  {{ loading ? '加载中...' : '暂无策略（可点击"新建策略"）' }}
                 </td>
               </tr>
               <tr
@@ -123,7 +134,7 @@
           <button class="btn btn-secondary" :disabled="currentPage >= totalPages" @click="currentPage += 1">下一页</button>
         </div>
       </div>
-    </section>
+    </div>
 
     <transition name="toast">
       <div v-if="showToast" class="toast" :class="toastType">
@@ -185,7 +196,7 @@
 </template>
 
 <script>
-import { listStrategies } from '@/api/backtest';
+import { listStrategies, saveStrategy } from '@/api/backtest';
 import { mergeLocalStrategyIds, removeLocalStrategyId } from '@/utils/backtestStrategies';
 import { normalizeStrategyList } from '@/utils/strategyNormalize';
 import { getStrategyRenameMap, resolveCurrentStrategyId, syncStrategyRenameMap } from '@/utils/strategyRenameMap';
@@ -217,7 +228,9 @@ export default {
       showToast: false,
       toastType: 'success',
       toastMessage: '',
-      toastTimer: null
+      toastTimer: null,
+      editingNewRow: false,
+      newStrategyName: ''
     };
   },
   computed: {
@@ -434,9 +447,89 @@ export default {
       this.showDeleteModal = true;
     },
     handleCreateStrategy() {
-      this.createSuggestedId = `strategy_${Date.now()}`;
-      this.createDraftId = this.createSuggestedId;
-      this.showCreateModal = true;
+      this.editingNewRow = true;
+      this.newStrategyName = `strategy_${Date.now()}`;
+      this.$nextTick(() => {
+        const input = this.$refs.newStrategyInput;
+        if (input) {
+          input.select();
+        }
+      });
+    },
+    cancelNewStrategy() {
+      this.editingNewRow = false;
+      this.newStrategyName = '';
+    },
+    async confirmNewStrategy() {
+      const id = String(this.newStrategyName || '').trim();
+      if (!id) {
+        this.cancelNewStrategy();
+        return;
+      }
+      if (/\s/.test(id)) {
+        this.showMessage('策略 ID 不能包含空白字符', 'error');
+        return;
+      }
+      if (!/^[A-Za-z0-9_\-\u4E00-\u9FFF]+$/.test(id)) {
+        this.showMessage('策略 ID 仅支持中文、字母、数字、下划线和中横线', 'error');
+        return;
+      }
+
+      this.editingNewRow = false;
+
+      // 创建策略记录，带RQAlpha模板代码
+      const templateCode = `# -*- coding: utf-8 -*-
+# 策略名称: ${id}
+# 创建时间: ${new Date().toLocaleString('zh-CN')}
+
+def init(context):
+    """
+    初始化函数，在策略启动时调用一次
+    context: 策略上下文对象
+    """
+    # 设置基准
+    context.benchmark = '000300.XSHG'
+
+    # 设置股票池
+    context.stocks = ['000001.XSHE', '600000.XSHG']
+
+    # 打印日志
+    logger.info('策略初始化完成')
+
+
+def handle_bar(context, bar_dict):
+    """
+    每个交易周期调用一次
+    context: 策略上下文对象
+    bar_dict: 当前的市场数据字典
+    """
+    # 获取当前持仓
+    positions = context.portfolio.positions
+
+    # 示例：简单的买入逻辑
+    for stock in context.stocks:
+        if stock not in positions:
+            # 如果没有持仓，买入（每只股票占总资金的比例）
+            order_target_percent(stock, 1.0 / len(context.stocks))
+
+    # 打印当前组合价值
+    logger.info('组合总值: {}'.format(context.portfolio.total_value))
+`;
+
+      try {
+        await saveStrategy(id, templateCode);
+        this.showMessage(`策略 ${id} 创建成功`);
+        await this.fetchList(true);
+      } catch (error) {
+        this.showMessage(this.getErrorMessage(error, '创建策略失败'), 'error');
+      }
+    },
+    handleNewStrategyKeydown(event) {
+      if (event.key === 'Enter') {
+        this.confirmNewStrategy();
+      } else if (event.key === 'Escape') {
+        this.cancelNewStrategy();
+      }
     },
     closeCreateModal() {
       this.showCreateModal = false;
@@ -548,7 +641,12 @@ export default {
         // 这里优先走后端列表接口；若后端未来支持分页，可在 params 中透传 page/page_size。
         const data = await listStrategies();
         const list = this.normalizeCanonicalStrategyRows(normalizeStrategyList(data), renameMap);
-        const sorted = [...list].sort((a, b) => String(a.id).localeCompare(String(b.id)));
+        // 按更新时间倒序排列，最新的在前面
+        const sorted = [...list].sort((a, b) => {
+          const tsA = getStrategyMetaTimestamp(a);
+          const tsB = getStrategyMetaTimestamp(b);
+          return tsB - tsA; // 倒序
+        });
         this.rows = sorted;
         mergeLocalStrategyIds(sorted.map((item) => item.id));
       } catch (error) {
@@ -576,135 +674,96 @@ export default {
 .strategies-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
+}
+
+.page-container {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
 }
 
 .page-header {
   display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(223, 231, 242, 0.7);
-}
-
-.page-title h2 {
-  margin: 0;
-  font-size: 22px;
-}
-
-.page-sub {
-  display: inline-block;
-  margin-top: 6px;
-  color: #5f6f86;
-  font-size: 13px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.title-section h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000;
+}
+
+.actions-section {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .search-wrap {
-  min-width: 260px;
-}
-
-.text-input {
-  width: 100%;
-  border: 1px solid #dcdfe6;
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 14px;
-  color: #303133;
-  background: #fff;
-}
-
-.text-input:focus {
-  outline: none;
-  border-color: #409eff;
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.12);
-}
-
-.content-card {
-  background: #fff;
-  border: 1px solid #eef2f7;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  overflow: hidden;
-}
-
-.card-header {
-  padding: 10px 14px;
-  border-bottom: 1px solid #ebeef5;
-  background: #f6faff;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.card-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.table-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.card-title h3 {
-  margin: 0;
-  font-size: 16px;
+  width: 200px;
 }
 
 .meta {
   font-size: 12px;
-  color: #5f6f86;
+  color: #666;
 }
 
-.hint {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #5f6f86;
+.text-input {
+  width: 100%;
+  border: 1px solid #d0d0d0;
+  border-radius: 2px;
+  padding: 6px 8px;
   font-size: 12px;
+  color: #000;
+  background: #fff;
+  transition: border-color 0.15s ease;
 }
 
-.hint-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: #60a5fa;
+.text-input:hover {
+  border-color: #999;
 }
 
-.card-body {
-  padding: 12px;
+.text-input:focus {
+  outline: none;
+  border-color: #1976d2;
+}
+
+.meta.selected {
+  color: #1976d2;
+  font-weight: 600;
+}
+
+.page-body {
+  padding: 0;
 }
 
 .inline-error {
-  background: #fff1f2;
-  border: 1px solid #fecdd3;
-  color: #9f1239;
-  padding: 10px 12px;
-  border-radius: 10px;
-  margin-bottom: 12px;
+  background: #ffebee;
+  border: 1px solid #ef5350;
+  color: #c62828;
+  padding: 8px 12px;
+  border-radius: 2px;
+  margin: 12px 16px;
+  font-size: 12px;
 }
 
 .table-scroll {
   overflow: auto;
-  border: 1px solid #eef2f7;
-  border-radius: 10px;
 }
 
 .table {
@@ -715,20 +774,27 @@ export default {
 
 .table th,
 .table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid #eef2f7;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e0e0e0;
   text-align: left;
   font-size: 12px;
-  color: #303133;
+  color: #000;
+  vertical-align: middle;
+}
+
+.table th:first-child,
+.table td:first-child {
+  padding-left: 16px;
 }
 
 .table thead th {
-  background: #f8fafc;
-  color: #475569;
+  background: #fafafa;
+  color: #000;
   font-weight: 600;
   position: sticky;
   top: 0;
   z-index: 1;
+  font-size: 12px;
 }
 
 .check-col {
@@ -740,26 +806,36 @@ export default {
 }
 
 .row-checkbox {
-  width: 14px;
-  height: 14px;
+  width: 16px;
+  height: 16px;
   cursor: pointer;
+  accent-color: #1f6feb;
+  transition: transform 0.15s ease;
+}
+
+.row-checkbox:hover {
+  transform: scale(1.1);
+}
+
+.row-checkbox:checked {
+  transform: scale(1.05);
 }
 
 .data-row {
   cursor: pointer;
-  transition: background-color 0.18s ease;
+  transition: background-color 0.15s ease;
 }
 
 .data-row:hover {
-  background: #f8fbff;
+  background: #f5f5f5;
 }
 
 .data-row.is-selected {
-  background: #eef6ff;
+  background: #e3f2fd;
 }
 
 .data-row.is-selected:hover {
-  background: #e4f0ff;
+  background: #bbdefb;
 }
 
 .empty-cell {
@@ -785,52 +861,58 @@ export default {
   border: 1px solid #d9ecff;
   background: #ecf5ff;
   color: #409eff;
-  border-radius: 999px;
+  border-radius: 2px;
   padding: 2px 9px;
   font-size: 12px;
   font-weight: 600;
 }
 
 .btn {
-  border: 1px solid #d0dae7;
+  border: 1px solid #d0d0d0;
   background: #fff;
-  color: #334155;
-  padding: 7px 12px;
-  border-radius: 8px;
+  color: #000;
+  padding: 6px 12px;
+  border-radius: 2px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s ease;
 }
 
 .btn:hover:not(:disabled) {
-  border-color: #9bb0c9;
+  border-color: #999;
+  background: #f5f5f5;
+}
+
+.btn:active:not(:disabled) {
+  background: #efefef;
 }
 
 .btn:disabled {
-  opacity: 0.58;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .btn-primary {
-  background: #1f6feb;
+  background: #1976d2;
   color: #fff;
-  border-color: #1f6feb;
+  border-color: #1976d2;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #1a62d1;
-  border-color: #1a62d1;
+  background: #1565c0;
+  border-color: #1565c0;
 }
 
 .btn-danger {
-  color: #b91c1c;
-  border-color: #fecaca;
-  background: #fff5f5;
+  color: #d32f2f;
+  border-color: #ef5350;
+  background: #fff;
 }
 
 .btn-danger:hover:not(:disabled) {
-  color: #991b1b;
-  border-color: #fca5a5;
-  background: #ffe4e6;
+  background: #ffebee;
+  border-color: #e53935;
 }
 
 .btn-danger.is-locked {
@@ -838,7 +920,7 @@ export default {
 }
 
 .btn-secondary {
-  background: #ffffff;
+  background: #fff;
 }
 
 .btn-mini {
@@ -853,71 +935,157 @@ export default {
   color: #1f6feb;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.link-btn::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  width: 0;
+  height: 2px;
+  background: #1f6feb;
+  transition: width 0.2s ease;
+}
+
+.link-btn:hover {
+  color: #1a5cd7;
+}
+
+.link-btn:hover::after {
+  width: 100%;
 }
 
 .pager {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px;
-  margin-top: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid #e0e0e0;
+  background: #fafafa;
 }
 
 .pager-meta {
   font-size: 12px;
-  color: #64748b;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .pager-split {
-  margin: 0 6px;
+  color: #ccc;
 }
 
 .toast {
   position: fixed;
-  right: 16px;
-  bottom: 18px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  right: 20px;
+  bottom: 20px;
+  padding: 12px 16px;
+  border-radius: 2px;
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.2), 0 4px 12px rgba(15, 23, 42, 0.15);
   font-size: 13px;
+  font-weight: 600;
   z-index: 9999;
-  background: #0f172a;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
   color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(8px);
 }
 
 .toast.error {
-  background: #991b1b;
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .toast-enter-active,
 .toast-leave-active {
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.toast-enter-from,
-.toast-leave-to {
-  transform: translateY(6px);
+.toast-enter-from {
+  transform: translateY(10px) scale(0.95);
   opacity: 0;
+}
+
+.inline-input {
+  width: 100%;
+  border: 2px solid #1f6feb;
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  color: #0f172a;
+  background: #fff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
+  box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.1);
+}
+
+.inline-input:focus {
+  outline: none;
+  border-color: #1a5cd7;
+}
+
+.new-row {
+  background: linear-gradient(90deg, #f0f9ff 0%, #ffffff 100%);
+  border-left: 3px solid #1f6feb;
+}
+
+.new-row-hint {
+  color: #64748b;
+  font-size: 12px;
+  font-style: italic;
+}
+
+.hint-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .dialog-overlay {
   position: fixed;
   inset: 0;
   z-index: 10010;
-  background: rgba(15, 23, 42, 0.46);
+  background: rgba(15, 23, 42, 0.5);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 16px;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .dialog {
   width: min(520px, 100%);
   background: #fff;
   border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  box-shadow: 0 18px 54px rgba(15, 23, 42, 0.25);
+  border-radius: 4px;
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.3), 0 8px 24px rgba(15, 23, 42, 0.2);
   overflow: hidden;
+  animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .dialog.danger {
@@ -942,13 +1110,23 @@ export default {
 .dialog-close {
   border: 1px solid #cbd5e1;
   background: #fff;
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
+  width: 34px;
+  height: 34px;
+  border-radius: 2px;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 20px;
   line-height: 1;
   color: #334155;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog-close:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  transform: rotate(90deg);
 }
 
 .dialog-body {

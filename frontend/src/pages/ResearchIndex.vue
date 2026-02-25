@@ -1,44 +1,35 @@
 <template>
   <div class="research-page">
-    <header class="page-header">
-      <div class="page-title">
-        <h2>研究管理</h2>
-        <span class="page-sub">集中管理 Notebook 研究，点击任意一行可编辑 Notebook。</span>
-      </div>
-
-      <div class="header-actions">
-        <div class="search-wrap">
-          <input
-            v-model.trim="keyword"
-            class="text-input"
-            type="text"
-            placeholder="搜索研究 ID / 标题"
-          >
+    <div class="page-container">
+      <div class="page-header">
+        <div class="title-section">
+          <h2>研究管理</h2>
+          <span class="meta">{{ filteredRows.length }} 条</span>
         </div>
 
-        <button class="btn btn-secondary" :disabled="loading" @click="fetchList(false)">
-          {{ loading ? '刷新中...' : '刷新' }}
-        </button>
-        <button class="btn btn-danger" :disabled="deleteSubmitting || !selectedIds.length" @click="openBatchDeleteModal">
-          {{ deleteSubmitting ? '删除中...' : `批量删除（${selectedIds.length}）` }}
-        </button>
-        <button class="btn btn-primary" @click="openCreateModal">
-          新建研究
-        </button>
-      </div>
-    </header>
-
-    <section class="content-card">
-      <div class="card-header">
-        <div class="card-title">
-          <h3>研究列表</h3>
-          <div class="table-actions">
-            <span class="meta">{{ filteredRows.length }} 条</span>
+        <div class="actions-section">
+          <div class="search-wrap">
+            <input
+              v-model.trim="keyword"
+              class="text-input"
+              type="text"
+              placeholder="搜索研究 ID / 标题"
+            >
           </div>
+
+          <button class="btn btn-secondary" :disabled="loading" @click="fetchList(false)">
+            {{ loading ? '刷新中...' : '刷新' }}
+          </button>
+          <button class="btn btn-danger" :disabled="deleteSubmitting || !selectedIds.length" @click="openBatchDeleteModal">
+            {{ deleteSubmitting ? '删除中...' : `批量删除（${selectedIds.length}）` }}
+          </button>
+          <button class="btn btn-primary" @click="handleCreateResearch">
+            新建研究
+          </button>
         </div>
       </div>
 
-      <div class="card-body">
+      <div class="page-body">
         <div v-if="errorMessage" class="inline-error">
           {{ errorMessage }}
         </div>
@@ -64,9 +55,29 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-if="!pagedRows.length">
+              <tr v-if="editingNewRow" class="new-row">
+                <td class="center"></td>
+                <td>
+                  <input
+                    ref="newResearchInput"
+                    v-model.trim="newResearchTitle"
+                    class="text-input"
+                    type="text"
+                    placeholder="输入研究名称"
+                    @keydown="handleNewResearchKeydown"
+                  >
+                </td>
+                <td colspan="3" class="new-row-hint">
+                  <span class="hint-text">输入研究名称后点击确认</span>
+                </td>
+                <td class="row-actions">
+                  <button class="btn btn-mini btn-primary" type="button" @click="confirmNewResearch">确认</button>
+                  <button class="btn btn-mini btn-secondary" type="button" @click="cancelNewResearch">取消</button>
+                </td>
+              </tr>
+              <tr v-if="!pagedRows.length && !editingNewRow">
                 <td colspan="7" class="empty-cell">
-                  {{ loading ? '加载中...' : '暂无研究（可点击“新建研究”）' }}
+                  {{ loading ? '加载中...' : '暂无研究（可点击"新建研究"）' }}
                 </td>
               </tr>
               <tr
@@ -131,7 +142,7 @@
           <button class="btn btn-secondary" :disabled="currentPage >= totalPages" @click="currentPage += 1">下一页</button>
         </div>
       </div>
-    </section>
+    </div>
 
     <div v-if="showFormModal" class="dialog-overlay" @click.self="closeFormModal">
       <div class="dialog">
@@ -422,7 +433,9 @@ export default {
       showToast: false,
       toastType: 'success',
       toastMessage: '',
-      toastTimer: null
+      toastTimer: null,
+      editingNewRow: false,
+      newResearchTitle: ''
     };
   },
   computed: {
@@ -639,6 +652,57 @@ export default {
         ...generated
       };
     },
+    handleCreateResearch() {
+      this.editingNewRow = true;
+      this.newResearchTitle = '';
+      this.$nextTick(() => {
+        this.$refs.newResearchInput?.focus();
+      });
+    },
+    cancelNewResearch() {
+      this.editingNewRow = false;
+      this.newResearchTitle = '';
+    },
+    async confirmNewResearch() {
+      const title = String(this.newResearchTitle || '').trim();
+      if (!title) {
+        this.cancelNewResearch();
+        return;
+      }
+
+      this.editingNewRow = false;
+
+      // 生成研究ID和路径
+      const dateStamp = getDateStamp(new Date());
+      const seq = this.getNextSequenceForDate(dateStamp);
+      const id = buildResearchIdByDate(dateStamp, seq);
+      const notebookPath = buildNotebookPathById(id);
+
+      // 创建研究记录
+      try {
+        const payload = {
+          id,
+          title,
+          description: '',
+          notebook_path: notebookPath,
+          kernel: DEFAULT_KERNEL,
+          status: DEFAULT_STATUS,
+          tags: []
+        };
+        await createResearch(payload);
+        this.showMessage(`研究 ${id} 创建成功`);
+        await this.fetchList(true);
+      } catch (error) {
+        this.showMessage(this.getErrorMessage(error, '创建研究失败'), 'error');
+      }
+    },
+    handleNewResearchKeydown(event) {
+      if (event.key === 'Enter') {
+        this.confirmNewResearch();
+      } else if (event.key === 'Escape') {
+        this.cancelNewResearch();
+      }
+    },
     openCreateModal() {
       this.formDraft = createDefaultForm();
       this.refreshGeneratedFields();
@@ -839,8 +903,11 @@ export default {
       try {
         const data = await listResearches();
         const list = normalizeResearchList(data);
+        // 按最后修改时间倒序排列，最新的在前面
         this.rows = [...list].sort((a, b) => {
-          const delta = toTimestamp(b.created_at) - toTimestamp(a.created_at);
+          const tsA = toTimestamp(a.updated_at || a.created_at);
+          const tsB = toTimestamp(b.updated_at || b.created_at);
+          const delta = tsB - tsA;
           if (delta !== 0) {
             return delta;
           }
@@ -873,139 +940,91 @@ export default {
 .research-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
+}
+
+.page-container {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
 }
 
 .page-header {
   display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(223, 231, 242, 0.7);
-}
-
-.page-title h2 {
-  margin: 0;
-  font-size: 22px;
-}
-
-.page-sub {
-  display: inline-block;
-  margin-top: 6px;
-  color: #5f6f86;
-  font-size: 13px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.title-section h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000;
+}
+
+.actions-section {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
 }
 
 .search-wrap {
-  min-width: 260px;
-}
-
-.text-input,
-.text-area {
-  width: 100%;
-  border: 1px solid #dcdfe6;
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 14px;
-  color: #303133;
-  background: #fff;
-}
-
-.text-input.id-input {
-  background: #f1f5f9;
-  color: #94a3b8;
-  border-color: #e2e8f0;
-}
-
-.text-area {
-  resize: vertical;
-}
-
-.text-input:focus,
-.text-area:focus {
-  outline: none;
-  border-color: #409eff;
-  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.12);
-}
-
-.content-card {
-  background: #fff;
-  border: 1px solid #eef2f7;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  overflow: hidden;
-}
-
-.card-header {
-  padding: 10px 14px;
-  border-bottom: 1px solid #ebeef5;
-  background: #f6faff;
-}
-
-.card-title {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.card-title h3 {
-  margin: 0;
-  font-size: 16px;
-}
-
-.table-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  width: 200px;
 }
 
 .meta {
   font-size: 12px;
-  color: #5f6f86;
+  color: #666;
 }
 
-.card-body {
-  padding: 12px;
+.page-body {
+  padding: 0;
+}
+
+.text-input {
+  width: 100%;
+  border: 1px solid #d0d0d0;
+  border-radius: 2px;
+  padding: 6px 8px;
+  font-size: 12px;
+  color: #000;
+  background: #fff;
+  transition: border-color 0.15s ease;
+}
+
+.text-input:hover {
+  border-color: #999;
+}
+
+.text-input:focus {
+  outline: none;
+  border-color: #1976d2;
 }
 
 .inline-error {
-  background: #fff1f2;
-  border: 1px solid #fecdd3;
-  color: #9f1239;
-  padding: 10px 12px;
-  border-radius: 10px;
-  margin-bottom: 12px;
-}
-
-.form-error {
-  margin-bottom: 0;
-  margin-top: 8px;
-}
-
-.delete-preview {
-  margin-top: -2px;
-  color: #64748b;
+  background: #ffebee;
+  border: 1px solid #ef5350;
+  color: #c62828;
+  padding: 8px 12px;
+  border-radius: 2px;
+  margin: 12px 16px;
   font-size: 12px;
-  word-break: break-all;
 }
 
 .table-scroll {
   overflow: auto;
-  border: 1px solid #eef2f7;
-  border-radius: 10px;
 }
 
 .table {
@@ -1016,136 +1035,64 @@ export default {
 
 .table th,
 .table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid #eef2f7;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e0e0e0;
   text-align: left;
   font-size: 12px;
-  color: #303133;
+  color: #000;
   vertical-align: middle;
 }
 
 .table thead th {
-  background: #f8fafc;
-  color: #475569;
+  background: #fafafa;
+  color: #000;
   font-weight: 600;
   position: sticky;
   top: 0;
   z-index: 1;
+  font-size: 12px;
 }
 
 .data-row {
   cursor: pointer;
-  transition: background-color 0.18s ease;
+  transition: background-color 0.15s ease;
 }
 
 .data-row:hover {
-  background: #f8fbff;
-}
-
-.center {
-  text-align: center !important;
-}
-
-.empty-cell {
-  text-align: center;
-  color: #94a3b8;
-  padding: 14px 10px;
-}
-
-.row-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  min-width: 220px;
-}
-
-.session-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.session-chip.is-running {
-  color: #14532d;
-  background: #dcfce7;
-}
-
-.session-chip.is-stopped {
-  color: #92400e;
-  background: #fef3c7;
-}
-
-.session-chip.is-error {
-  color: #991b1b;
-  background: #fee2e2;
-}
-
-.session-chip.is-pending {
-  color: #1e3a8a;
-  background: #dbeafe;
-}
-
-.session-chip.is-idle {
-  color: #334155;
-  background: #e2e8f0;
-}
-
-.pager {
-  margin-top: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.pager-meta {
-  font-size: 12px;
-  color: #64748b;
-}
-
-.pager-split {
-  margin: 0 6px;
-}
-
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-}
-
-.muted-id {
-  color: #94a3b8;
+  background: #f5f5f5;
 }
 
 .btn {
-  border: 1px solid #d0dae7;
+  border: 1px solid #d0d0d0;
   background: #fff;
-  color: #334155;
-  padding: 7px 12px;
-  border-radius: 8px;
-  font-size: 13px;
+  color: #000;
+  padding: 6px 12px;
+  border-radius: 2px;
   cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s ease;
 }
 
 .btn:hover:not(:disabled) {
-  border-color: #9bb0c9;
+  border-color: #999;
+  background: #f5f5f5;
 }
 
 .btn:disabled {
-  opacity: 0.58;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .btn-primary {
-  background: #1f6feb;
+  background: #1976d2;
   color: #fff;
-  border-color: #1f6feb;
+  border-color: #1976d2;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #1a62d1;
-  border-color: #1a62d1;
+  background: #1565c0;
+  border-color: #1565c0;
 }
 
 .btn-secondary {
@@ -1153,32 +1100,58 @@ export default {
 }
 
 .btn-danger {
-  color: #b91c1c;
-  border-color: #fecaca;
-  background: #fff5f5;
+  color: #d32f2f;
+  border-color: #ef5350;
+  background: #fff;
 }
 
 .btn-danger:hover:not(:disabled) {
-  color: #991b1b;
-  border-color: #fca5a5;
-  background: #ffe4e6;
+  background: #ffebee;
+  border-color: #e53935;
 }
 
 .btn-warning {
-  color: #92400e;
-  border-color: #fcd34d;
-  background: #fffbeb;
+  color: #f57c00;
+  border-color: #ff9800;
+  background: #fff;
 }
 
 .btn-warning:hover:not(:disabled) {
-  color: #78350f;
-  border-color: #fbbf24;
-  background: #fef3c7;
+  background: #fff3e0;
+  border-color: #f57c00;
 }
 
 .btn-mini {
   padding: 4px 8px;
   font-size: 12px;
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.pager-meta {
+  font-size: 12px;
+  color: #666;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pager-split {
+  color: #ccc;
 }
 
 .dialog-overlay {
@@ -1193,9 +1166,9 @@ export default {
 .dialog {
   width: min(740px, calc(100vw - 28px));
   background: #fff;
-  border-radius: 12px;
-  border: 1px solid #e5edf6;
-  box-shadow: 0 22px 40px rgba(2, 6, 23, 0.18);
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   overflow: hidden;
 }
 
@@ -1207,13 +1180,16 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 14px;
-  border-bottom: 1px solid #ebf0f7;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fafafa;
 }
 
 .dialog-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #000;
 }
 
 .dialog-close {
@@ -1221,8 +1197,18 @@ export default {
   background: transparent;
   font-size: 20px;
   line-height: 1;
-  color: #64748b;
+  color: #666;
   cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dialog-close:hover {
+  color: #000;
 }
 
 .dialog-body {
@@ -1253,15 +1239,79 @@ export default {
 
 .field-row label {
   font-size: 12px;
-  color: #64748b;
+  color: #666;
+  font-weight: 500;
 }
 
 .dialog-footer {
-  padding: 12px 14px;
-  border-top: 1px solid #ebf0f7;
+  padding: 12px 16px;
+  border-top: 1px solid #e0e0e0;
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  background: #fafafa;
+}
+
+.text-area {
+  width: 100%;
+  border: 1px solid #d0d0d0;
+  border-radius: 2px;
+  padding: 8px;
+  font-size: 12px;
+  color: #000;
+  background: #fff;
+  font-family: inherit;
+  resize: vertical;
+  transition: border-color 0.15s ease;
+}
+
+.text-area:hover {
+  border-color: #999;
+}
+
+.text-area:focus {
+  outline: none;
+  border-color: #1976d2;
+}
+
+.session-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid;
+}
+
+.session-chip.is-running {
+  color: #2e7d32;
+  background: #e8f5e9;
+  border-color: #66bb6a;
+}
+
+.session-chip.is-stopped {
+  color: #666;
+  background: #f5f5f5;
+  border-color: #d0d0d0;
+}
+
+.session-chip.is-error {
+  color: #d32f2f;
+  background: #ffebee;
+  border-color: #ef5350;
+}
+
+.session-chip.is-pending {
+  color: #f57c00;
+  background: #fff3e0;
+  border-color: #ffb74d;
+}
+
+.session-chip.is-idle {
+  color: #666;
+  background: #fafafa;
+  border-color: #e0e0e0;
 }
 
 .toast {

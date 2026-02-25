@@ -1,22 +1,23 @@
 <template>
   <div class="login-page">
-    <div class="login-card">
-      <div class="system-brand">
-        <img
-          src="@/assets/backquant-logo.svg"
-          alt="BackQuant logo"
-          class="system-logo"
-        >
-        <span class="system-name">BackQuant</span>
-      </div>
+    <div class="login-container">
+      <div class="login-card">
+        <div class="system-brand">
+          <img
+            src="@/assets/backquant-logo.svg"
+            alt="BackQuant logo"
+            class="system-logo"
+          >
+          <span class="system-name">BackQuant</span>
+        </div>
 
-      <form
-        class="login-form"
-        autocomplete="on"
-        method="post"
-        action="/api/login"
-        @submit.prevent="handleLogin"
-      >
+        <form
+          class="login-form"
+          autocomplete="on"
+          method="post"
+          action="/api/login"
+          @submit.prevent="handleLogin"
+        >
         <label class="field-label" for="username">用户名</label>
         <input
           id="username"
@@ -52,12 +53,29 @@
         </label>
 
         <p v-if="error" class="message error">{{ error }}</p>
-        <p v-if="showSuccess" class="message success">登录成功，正在进入 BackQuant...</p>
+        <p v-if="showSuccess" class="message success">
+          <svg class="success-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+          </svg>
+          登录成功
+        </p>
 
         <button type="submit" :disabled="isLoading">
           {{ isLoading ? '登录中...' : '登录' }}
         </button>
       </form>
+    </div>
+
+    <div class="system-features">
+      <div class="feature-item">
+        <span class="feature-icon">🔒</span>
+        <span class="feature-text">本地部署</span>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">🛡️</span>
+        <span class="feature-text">开源安全</span>
+      </div>
+    </div>
     </div>
 
     <transition name="modal-fade">
@@ -336,23 +354,34 @@ export default {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+  max-width: 480px;
 }
 
 .login-card {
   width: 100%;
-  max-width: 420px;
   background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.08);
-  padding: 28px;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e0e0e0;
+  padding: 32px;
 }
 
 .system-brand {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 14px;
-  color: #1f6feb;
+  margin-bottom: 20px;
+  color: #000;
   font-size: 14px;
   font-weight: 700;
 }
@@ -369,6 +398,34 @@ export default {
   letter-spacing: 0.3px;
 }
 
+.system-features {
+  display: flex;
+  gap: 32px;
+  padding: 16px 24px;
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  width: 100%;
+  justify-content: center;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #333;
+  font-weight: 500;
+}
+
+.feature-icon {
+  font-size: 18px;
+}
+
+.feature-text {
+  font-weight: 500;
+}
+
 .login-form {
   display: flex;
   flex-direction: column;
@@ -377,22 +434,28 @@ export default {
 
 .field-label {
   margin-top: 4px;
-  color: #606266;
-  font-size: 13px;
+  color: #666;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .login-form input[type='text'],
 .login-form input[type='password'] {
   width: 100%;
-  border: 1px solid #dcdfe6;
-  border-radius: 8px;
-  padding: 10px 12px;
-  font-size: 14px;
+  border: 1px solid #d0d0d0;
+  border-radius: 2px;
+  padding: 8px 12px;
+  font-size: 13px;
+  transition: border-color 0.15s ease;
+}
+
+.login-form input:hover {
+  border-color: #999;
 }
 
 .login-form input:focus {
   outline: none;
-  border-color: #409eff;
+  border-color: #1976d2;
 }
 
 .remember-row {
@@ -406,34 +469,52 @@ export default {
 
 .message {
   margin: 0;
-  font-size: 13px;
-  border-radius: 6px;
-  padding: 8px 10px;
+  font-size: 12px;
+  border-radius: 2px;
+  padding: 10px 12px;
+  border: 1px solid;
 }
 
 .message.error {
-  color: #f56c6c;
-  background: #fef0f0;
+  color: #d32f2f;
+  background: #ffebee;
+  border-color: #ef5350;
 }
 
 .message.success {
-  color: #67c23a;
-  background: #f0f9eb;
+  color: #2e7d32;
+  background: #e8f5e9;
+  border-color: #66bb6a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.success-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 button {
   margin-top: 8px;
-  height: 40px;
+  height: 38px;
   border: 0;
-  border-radius: 8px;
-  background: #409eff;
+  border-radius: 2px;
+  background: #1976d2;
   color: #fff;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+button:hover:not(:disabled) {
+  background: #1565c0;
 }
 
 button:disabled {
-  background: #a0cfff;
+  background: #90caf9;
   cursor: not-allowed;
 }
 
@@ -452,8 +533,9 @@ button:disabled {
   width: 100%;
   max-width: 420px;
   background: #ffffff;
-  border-radius: 14px;
-  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.2);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid #e0e0e0;
   overflow: hidden;
 }
 
@@ -462,14 +544,15 @@ button:disabled {
   flex-direction: column;
   align-items: flex-start;
   gap: 8px;
-  padding: 18px 20px 12px;
-  border-bottom: 1px solid #eef2f7;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fafafa;
 }
 
 .bundle-modal-title {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 600;
-  color: #0f172a;
+  color: #000;
 }
 
 .bundle-modal-badge {

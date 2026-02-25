@@ -1,6 +1,6 @@
 <template>
-  <div class="research-notebook-page" :class="{ 'header-collapsed': headerCollapsed }">
-    <header class="page-header" :class="{ 'is-collapsed': headerCollapsed }">
+  <div class="research-notebook-page" :class="{ 'header-collapsed': headerCollapsed, 'is-fullscreen': isFullscreen }">
+    <header v-if="!isFullscreen" class="page-header" :class="{ 'is-collapsed': headerCollapsed }">
       <div class="top-line">
         <div class="title-inline">
           <h2>{{ pageTitle }}</h2>
@@ -59,6 +59,19 @@
       <div class="iframe-card">
         <div class="iframe-head">
           <h3>Notebook 会话</h3>
+          <button
+            class="btn btn-icon"
+            type="button"
+            :title="isFullscreen ? '退出全屏' : '全屏'"
+            @click="toggleFullscreen"
+          >
+            <svg v-if="!isFullscreen" class="icon" viewBox="0 0 24 24" fill="none">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <svg v-else class="icon" viewBox="0 0 24 24" fill="none">
+              <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
         </div>
 
         <div v-if="!hasNotebookSession" class="iframe-empty">
@@ -213,7 +226,8 @@ export default {
       showToast: false,
       toastType: 'success',
       toastMessage: '',
-      toastTimer: null
+      toastTimer: null,
+      isFullscreen: false
     };
   },
   computed: {
@@ -305,6 +319,12 @@ export default {
     },
     toggleHeader() {
       this.headerCollapsed = !this.headerCollapsed;
+    },
+    toggleFullscreen() {
+      this.isFullscreen = !this.isFullscreen;
+      if (this.isFullscreen) {
+        this.headerCollapsed = true;
+      }
     },
     buildSessionPayload(forceNotebookPath = false) {
       const payload = {};
@@ -582,7 +602,7 @@ export default {
 .research-notebook-page {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 0;
   --notebook-offset: 260px;
 }
 
@@ -590,15 +610,41 @@ export default {
   --notebook-offset: 180px;
 }
 
+.research-notebook-page.is-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: #fff;
+  gap: 0;
+  --notebook-offset: 0;
+}
+
+.research-notebook-page.is-fullscreen .notebook-main {
+  height: 100vh;
+}
+
+.research-notebook-page.is-fullscreen .iframe-card {
+  height: 100%;
+  border-radius: 0;
+  border: none;
+}
+
+.research-notebook-page.is-fullscreen .iframe-wrap {
+  height: calc(100vh - 50px);
+}
+
+.research-notebook-page.is-fullscreen .notebook-iframe {
+  height: calc(100vh - 50px);
+}
+
 .page-header {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid #dbe4f0;
-  background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
-  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.07);
+  gap: 6px;
+  padding: 12px 16px;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  background: #fafafa;
   overflow: hidden;
 }
 
@@ -617,24 +663,22 @@ export default {
 }
 
 .header-toggle-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 999px;
-  border: 1px solid #93c5fd;
+  width: 32px;
+  height: 32px;
+  border-radius: 2px;
+  border: 1px solid #d0d0d0;
   background: #ffffff;
-  color: #1d4ed8;
+  color: #000;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.14);
-  transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .header-toggle-btn:hover {
-  background: #eff6ff;
-  border-color: #60a5fa;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+  background: #f5f5f5;
+  border-color: #999;
 }
 
 .header-toggle-btn .toggle-icon {
@@ -659,7 +703,7 @@ export default {
 
 .title-inline h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 17px;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -668,8 +712,8 @@ export default {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  font-size: 12px;
+  gap: 6px;
+  font-size: 11px;
   color: #64748b;
 }
 
@@ -684,10 +728,10 @@ export default {
   align-items: center;
   gap: 4px;
   padding: 2px 6px;
-  border-radius: 6px;
-  border: 1px dashed #cbd5f5;
-  background: #f8fafc;
-  color: #334155;
+  border-radius: 2px;
+  border: 1px solid #d0d0d0;
+  background: #f5f5f5;
+  color: #666;
   font-size: 12px;
   line-height: 1.4;
 }
@@ -776,9 +820,8 @@ export default {
 
 .iframe-card {
   background: #fff;
-  border: 1px solid #e7eef7;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
   overflow: hidden;
 }
 
@@ -787,18 +830,41 @@ export default {
   justify-content: space-between;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border-bottom: 1px solid #edf2f8;
-  background: #f8fbff;
-}
-
-.break-all {
-  word-break: break-all;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fafafa;
 }
 
 .iframe-head h3 {
   margin: 0;
-  font-size: 15px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #000;
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.btn-icon:hover {
+  background: #f5f5f5;
+  border-color: #999;
+}
+
+.btn-icon .icon {
+  width: 16px;
+  height: 16px;
+  color: #666;
 }
 
 .iframe-wrap {
@@ -834,76 +900,80 @@ export default {
 }
 
 .inline-error {
-  background: #fff1f2;
-  border: 1px solid #fecdd3;
-  color: #9f1239;
+  background: #ffebee;
+  border: 1px solid #ef5350;
+  color: #c62828;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 2px;
   margin-bottom: 10px;
   font-size: 12px;
-}
-
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
 }
 
 .status-chip {
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 2px;
   font-size: 12px;
   font-weight: 600;
+  border: 1px solid;
 }
 
 .status-chip.is-draft {
-  color: #334155;
-  background: #e2e8f0;
+  color: #666;
+  background: #f5f5f5;
+  border-color: #d0d0d0;
 }
 
 .status-chip.is-active {
-  color: #14532d;
-  background: #dcfce7;
+  color: #2e7d32;
+  background: #e8f5e9;
+  border-color: #66bb6a;
 }
 
 .status-chip.is-archived {
-  color: #92400e;
-  background: #fef3c7;
+  color: #f57c00;
+  background: #fff3e0;
+  border-color: #ffb74d;
 }
 
 .status-chip.is-error {
-  color: #991b1b;
-  background: #fee2e2;
+  color: #d32f2f;
+  background: #ffebee;
+  border-color: #ef5350;
 }
 
 .btn {
-  border: 1px solid #d0dae7;
+  border: 1px solid #d0d0d0;
   background: #fff;
-  color: #334155;
-  padding: 7px 12px;
-  border-radius: 8px;
-  font-size: 13px;
+  color: #000;
+  padding: 6px 12px;
+  border-radius: 2px;
+  font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.15s ease;
 }
 
 .btn:hover:not(:disabled) {
-  border-color: #9bb0c9;
+  border-color: #999;
+  background: #f5f5f5;
 }
 
 .btn:disabled {
-  opacity: 0.58;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
 .btn-primary {
-  background: #1f6feb;
+  background: #1976d2;
   color: #fff;
-  border-color: #1f6feb;
+  border-color: #1976d2;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #1a62d1;
-  border-color: #1a62d1;
+  background: #1565c0;
+  border-color: #1565c0;
 }
 
 .btn-secondary {
@@ -911,15 +981,14 @@ export default {
 }
 
 .btn-danger {
-  color: #b91c1c;
-  border-color: #fecaca;
-  background: #fff5f5;
+  color: #d32f2f;
+  border-color: #ef5350;
+  background: #fff;
 }
 
 .btn-danger:hover:not(:disabled) {
-  color: #991b1b;
-  border-color: #fca5a5;
-  background: #ffe4e6;
+  background: #ffebee;
+  border-color: #e53935;
 }
 
 .toast {

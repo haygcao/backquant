@@ -1659,7 +1659,7 @@ export default {
   gap: 12px;
   padding: 16px;
   border: 1px solid #e7edf5;
-  border-radius: 12px;
+  border-radius: 2px;
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
 }
 
@@ -1689,7 +1689,7 @@ export default {
 
 .step-chip {
   border: 1px solid #dcdfe6;
-  border-radius: 999px;
+  border-radius: 2px;
   background: #fff;
   color: #606266;
   display: inline-flex;
@@ -1737,7 +1737,7 @@ export default {
 .main-panel,
 .history-panel {
   border: 1px solid #e7edf5;
-  border-radius: 12px;
+  border-radius: 2px;
   background: #fff;
   padding: 12px;
   min-height: 620px;
@@ -1787,7 +1787,7 @@ export default {
 .create-box {
   padding: 10px;
   border: 1px solid #edf2f8;
-  border-radius: 10px;
+  border-radius: 2px;
   background: #f9fbff;
 }
 
@@ -1894,7 +1894,7 @@ export default {
   align-items: center;
   margin-left: 8px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 2px;
   font-size: 12px;
   color: #e6a23c;
   background: #fdf6ec;
@@ -1991,7 +1991,7 @@ export default {
 .chart-box,
 .table-wrap {
   border: 1px solid #edf2f8;
-  border-radius: 10px;
+  border-radius: 2px;
   padding: 10px;
   background: #fafcff;
 }
@@ -2029,7 +2029,7 @@ export default {
 
 .result-status-card {
   border: 1px solid #e8eef8;
-  border-radius: 10px;
+  border-radius: 2px;
   padding: 10px 12px;
   background: linear-gradient(180deg, #f8fbff 0%, #fdfefe 100%);
 }
@@ -2134,7 +2134,7 @@ export default {
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 2px;
   font-size: 12px;
   border: 1px solid transparent;
 }
@@ -2196,7 +2196,7 @@ export default {
   transform: translate(-50%, -50%);
   z-index: 3100;
   color: #fff;
-  border-radius: 10px;
+  border-radius: 2px;
   padding: 10px 16px;
   font-size: 13px;
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.28);
@@ -2234,7 +2234,7 @@ export default {
 
 .confirm-modal-card {
   width: min(460px, 100%);
-  border-radius: 14px;
+  border-radius: 2px;
   border: 1px solid #e4ecf8;
   background: #fff;
   box-shadow: 0 20px 45px rgba(15, 23, 42, 0.18);

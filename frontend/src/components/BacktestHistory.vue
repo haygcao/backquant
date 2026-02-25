@@ -6,11 +6,7 @@
           <h2>回测历史</h2>
           <span class="panel-tag">按策略查看历史任务</span>
         </div>
-        <button class="btn btn-secondary btn-mini" type="button" @click="handleGoBack">返回上一页</button>
-      </div>
-      <div class="controls-grid">
-        <div class="control-item">
-          <label for="history-strategy">策略</label>
+        <div class="panel-title-controls">
           <select
             id="history-strategy"
             v-model="selectedStrategyId"
@@ -23,10 +19,6 @@
               {{ item.id }}
             </option>
           </select>
-        </div>
-
-        <div class="control-item">
-          <label for="history-status">状态筛选</label>
           <select
             id="history-status"
             v-model="statusFilter"
@@ -41,13 +33,11 @@
             <option value="CANCELLED">CANCELLED</option>
             <option value="FINISHED">FINISHED</option>
           </select>
-        </div>
-
-        <div class="control-item control-btn-wrap">
           <button class="btn btn-secondary" :disabled="jobsLoading || !selectedStrategyId" @click="handleRefresh">
             {{ jobsLoading ? '查询中...' : '查询' }}
           </button>
         </div>
+        <button class="btn btn-secondary btn-mini" type="button" @click="handleGoBack">返回上一页</button>
       </div>
 
       <p v-if="listError" class="error-line">{{ listError }}</p>
@@ -1699,15 +1689,20 @@ export default {
 .history-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 0;
 }
 
 .panel {
   background: #fff;
-  border: 1px solid #e6edf6;
-  border-radius: 12px;
-  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
-  padding: 14px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 0;
+}
+
+.controls-panel {
+  border-bottom: none;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
 }
 
 .panel-title-row {
@@ -1715,6 +1710,9 @@ export default {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fafafa;
 }
 
 .panel-title-main {
@@ -1723,66 +1721,61 @@ export default {
   gap: 10px;
 }
 
+.panel-title-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+  margin: 0 12px;
+}
+
+.panel-title-controls .text-input {
+  width: 180px;
+}
+
 .panel-title-row h2 {
   margin: 0;
-  font-size: 20px;
-  color: #1f2937;
+  font-size: 16px;
+  font-weight: 600;
+  color: #000;
 }
 
 .panel-tag {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
-  border: 1px solid #dbeafe;
-  color: #1d4ed8;
-  background: #eff6ff;
-  padding: 2px 10px;
+  border-radius: 2px;
+  border: 1px solid #d0d0d0;
+  color: #666;
+  background: #f5f5f5;
+  padding: 2px 8px;
   font-size: 12px;
   font-weight: 600;
 }
 
-.controls-grid {
-  margin-top: 12px;
-  display: grid;
-  grid-template-columns: minmax(180px, 1fr) minmax(180px, 1fr) auto;
-  gap: 12px;
-}
-
-.control-item {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.control-item label {
-  font-size: 13px;
-  color: #4b5563;
-  font-weight: 600;
-}
-
-.control-btn-wrap {
-  justify-content: flex-end;
-}
-
 .text-input {
-  height: 38px;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
-  padding: 0 10px;
-  font-size: 14px;
-  color: #1f2937;
+  height: 32px;
+  border-radius: 2px;
+  border: 1px solid #d0d0d0;
+  padding: 0 8px;
+  font-size: 12px;
+  color: #000;
+  transition: border-color 0.15s ease;
+}
+
+.text-input:hover {
+  border-color: #999;
 }
 
 .text-input:focus {
   outline: none;
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.18);
+  border-color: #1976d2;
 }
 
 .content-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
-  gap: 16px;
+  gap: 12px;
 }
 
 .content-grid.jobs-collapsed {
@@ -1793,7 +1786,9 @@ export default {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fafafa;
 }
 
 .section-header-actions {
@@ -1835,7 +1830,7 @@ export default {
 .table-wrap {
   overflow: auto;
   border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border-radius: 2px;
 }
 
 .data-table {
@@ -1887,7 +1882,7 @@ export default {
   align-items: center;
   justify-content: center;
   min-width: 84px;
-  border-radius: 999px;
+  border-radius: 2px;
   padding: 3px 10px;
   font-size: 12px;
   font-weight: 700;
@@ -2000,7 +1995,7 @@ export default {
 .detail-nav {
   background: #fff;
   border: 1px solid #e6edf6;
-  border-radius: 12px;
+  border-radius: 2px;
   box-shadow: 0 2px 10px rgba(15, 23, 42, 0.05);
   padding: 10px;
   position: sticky;
@@ -2013,7 +2008,7 @@ export default {
   border: 1px solid transparent;
   background: transparent;
   padding: 10px 10px;
-  border-radius: 10px;
+  border-radius: 2px;
   cursor: pointer;
   font-weight: 700;
   color: #0f172a;
@@ -2102,7 +2097,7 @@ export default {
 .log-block {
   margin: 0;
   border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border-radius: 2px;
   padding: 10px;
   background: #f8fafc;
   min-height: 140px;
@@ -2127,7 +2122,7 @@ export default {
 
 .dialog {
   width: min(460px, 100%);
-  border-radius: 14px;
+  border-radius: 2px;
   border: 1px solid #e2e8f0;
   background: #fff;
   box-shadow: 0 18px 54px rgba(15, 23, 42, 0.25);
@@ -2185,7 +2180,7 @@ export default {
 .chart-wrap {
   height: 300px;
   border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border-radius: 2px;
   padding: 10px;
 }
 

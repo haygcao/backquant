@@ -81,7 +81,7 @@ export default {
   position: relative;
   background: #ffffff;
   border: 1px solid #eef2f7;
-  border-radius: 12px;
+  border-radius: 2px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
   overflow: hidden;
   display: flex;
@@ -124,7 +124,7 @@ export default {
 .icon-btn {
   border: 1px solid #d1d5db;
   background: #fff;
-  border-radius: 10px;
+  border-radius: 2px;
   padding: 6px 10px;
   cursor: pointer;
   font-size: 12px;
@@ -166,7 +166,7 @@ export default {
   top: 12px;
   bottom: 12px;
   width: 2px;
-  border-radius: 999px;
+  border-radius: 2px;
   background: rgba(148, 163, 184, 0.7);
 }
 </style>

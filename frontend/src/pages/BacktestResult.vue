@@ -1132,11 +1132,16 @@ export default {
   gap: 12px;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 18px 20px;
-  border-radius: 12px;
-  background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-  border: 1px solid rgba(223, 231, 242, 0.7);
+  padding: 20px 24px;
+  border-radius: 2px;
+  background: linear-gradient(135deg, #ffffff 0%, #f7fbff 100%);
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(223, 231, 242, 0.6);
+  transition: box-shadow 0.3s ease;
+}
+
+.summary-bar:hover {
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.1), 0 2px 6px rgba(15, 23, 42, 0.06);
 }
 
 .title-row {
@@ -1156,41 +1161,46 @@ export default {
 }
 
 .run-chip {
-  background: #0f172a;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
   color: #fff;
-  padding: 2px 8px;
-  border-radius: 999px;
+  padding: 3px 10px;
+  border-radius: 2px;
   font-size: 12px;
   font-weight: 800;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.3);
 }
 
 .status {
-  padding: 2px 10px;
-  border-radius: 999px;
+  padding: 3px 12px;
+  border-radius: 2px;
   font-size: 12px;
   font-weight: 900;
-  border: 1px solid #d1d5db;
+  border: 1.5px solid #d1d5db;
   background: #fff;
   color: #0f172a;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
 }
 
 .status-running {
-  border-color: #93c5fd;
-  background: #eff6ff;
-  color: #1d4ed8;
+  border-color: rgba(59, 130, 246, 0.3);
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  color: #1e40af;
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.15);
 }
 
 .status-finished {
-  border-color: #86efac;
-  background: #ecfdf5;
+  border-color: rgba(34, 197, 94, 0.3);
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
   color: #166534;
+  box-shadow: 0 2px 8px rgba(34, 197, 94, 0.15);
 }
 
 .status-failed,
 .status-cancelled {
-  border-color: #fecaca;
-  background: #fff1f2;
-  color: #9f1239;
+  border-color: rgba(239, 68, 68, 0.3);
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  color: #991b1b;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
 }
 
 .summary-meta {
@@ -1225,11 +1235,16 @@ export default {
 .left-nav {
   background: #fff;
   border: 1px solid #eef2f7;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border-radius: 2px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
   padding: 12px;
   position: sticky;
   top: 76px;
+  transition: box-shadow 0.3s ease;
+}
+
+.left-nav:hover {
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.1), 0 2px 6px rgba(15, 23, 42, 0.06);
 }
 
 .nav-item {
@@ -1237,34 +1252,57 @@ export default {
   text-align: left;
   border: 1px solid transparent;
   background: transparent;
-  padding: 10px 10px;
-  border-radius: 10px;
+  padding: 11px 12px;
+  border-radius: 2px;
   cursor: pointer;
-  font-weight: 800;
-  color: #0f172a;
+  font-weight: 700;
+  color: #334155;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.nav-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 0;
+  background: #1f6feb;
+  border-radius: 0 2px 2px 0;
+  transition: height 0.2s ease;
 }
 
 .nav-item:hover {
   background: #f8fafc;
   border-color: #e2e8f0;
+  transform: translateX(2px);
 }
 
 .nav-item.active {
-  background: #eaf2ff;
-  border-color: #bfdbfe;
-  color: #1d4ed8;
+  background: linear-gradient(135deg, #eaf2ff 0%, #dbeafe 100%);
+  border-color: rgba(31, 111, 235, 0.2);
+  color: #1e40af;
+  box-shadow: 0 2px 8px rgba(31, 111, 235, 0.1);
+}
+
+.nav-item.active::before {
+  height: 60%;
 }
 
 .badge {
-  background: #0f172a;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
   color: #fff;
-  border-radius: 999px;
-  padding: 1px 7px;
+  border-radius: 2px;
+  padding: 2px 8px;
   font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.3);
 }
 
 .content {
@@ -1277,9 +1315,14 @@ export default {
 .panel {
   background: #fff;
   border: 1px solid #eef2f7;
-  border-radius: 12px;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  border-radius: 2px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08), 0 1px 3px rgba(15, 23, 42, 0.04);
   overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+.panel:hover {
+  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.1), 0 2px 6px rgba(15, 23, 42, 0.06);
 }
 
 .panel-header {
@@ -1315,7 +1358,7 @@ export default {
 
 .inline-hint {
   border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  border-radius: 2px;
   background: #f8fafc;
   padding: 10px 12px;
   margin-bottom: 12px;
@@ -1335,7 +1378,7 @@ export default {
 
 .progress {
   height: 10px;
-  border-radius: 999px;
+  border-radius: 2px;
   overflow: hidden;
   background: rgba(226, 232, 240, 0.9);
   margin-top: 10px;
@@ -1354,7 +1397,7 @@ export default {
 
 .card {
   border: 1px solid #eef2f7;
-  border-radius: 12px;
+  border-radius: 2px;
   padding: 12px;
   background: #ffffff;
 }
@@ -1375,7 +1418,7 @@ export default {
 .chart-card {
   margin-top: 12px;
   border: 1px solid #eef2f7;
-  border-radius: 12px;
+  border-radius: 2px;
   overflow: hidden;
 }
 
@@ -1404,7 +1447,7 @@ export default {
 .meta-chip {
   font-size: 12px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: 2px;
   background: #ecfdf5;
   border: 1px solid #86efac;
   color: #166534;
@@ -1430,7 +1473,7 @@ export default {
 .table-scroll {
   overflow: auto;
   border: 1px solid #eef2f7;
-  border-radius: 10px;
+  border-radius: 2px;
 }
 
 .table {
@@ -1475,7 +1518,7 @@ export default {
   background: #ffffff;
   color: #1f2937;
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: 2px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 700;
@@ -1504,7 +1547,7 @@ export default {
 .empty {
   padding: 18px;
   border: 1px dashed #e2e8f0;
-  border-radius: 12px;
+  border-radius: 2px;
   background: #f8fafc;
   color: #64748b;
   font-weight: 700;
@@ -1518,7 +1561,7 @@ export default {
   line-height: 1.5;
   background: #0b1220;
   color: #e5e7eb;
-  border-radius: 12px;
+  border-radius: 2px;
   padding: 10px 12px;
   min-height: 360px;
 }
@@ -1535,7 +1578,7 @@ export default {
 
 .kv {
   border: 1px solid #eef2f7;
-  border-radius: 12px;
+  border-radius: 2px;
   background: #ffffff;
   padding: 10px 12px;
 }
@@ -1558,7 +1601,7 @@ export default {
   right: 16px;
   bottom: 18px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 2px;
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
   font-size: 13px;
   z-index: 9999;
