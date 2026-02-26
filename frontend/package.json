@@ -1,6 +1,6 @@
 {
   "name": "backquant",
-  "version": "0.1.0",
+  "version": "0.2.2",
   "private": true,
   "scripts": {
     "serve": "NODE_NO_WARNINGS=1 node scripts/vue-cli-service-safe.js serve",
