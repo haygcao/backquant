@@ -1,5 +1,7 @@
 # BackQuant 量化回测平台
 
+[English](README_EN.md) | 简体中文
+
 <u>**完全本地化部署，策略和数据本地运行，不依赖第三方平台，既保障隐私安全，又具备高度可定制性。**</u>
 
 本仓库包含后端（Flask + RQAlpha）与前端（Vue 3）两部分，并提供 Research 工作台（Jupyter Lab）集成能力。
@@ -32,7 +34,7 @@ docker compose up --build -d
 ### RQAlpha 与日线数据
 
 - Docker 镜像已内置 RQAlpha（`rqalpha==6.1.2`）。
-- 镜像已预装常用量化库：`numpy`、`pandas`、`statsmodels`、`scikit-learn`（`datetime`、`math` 为 Python 标准库无需安装）。
+- 镜像已预装常用量化库：`numpy`、`pandas`、`statsmodels`、`scikit-learn`
 - 内置一个默认策略 `demo`，可直接在策略列表中运行。
 - 日线数据按月更新：容器启动时自动写入 crontab（`/etc/cron.d/rqalpha-bundle`，默认每月 1 日 03:00 运行更新任务）。
 - 如需调整更新时间，设置环境变量 `RQALPHA_BUNDLE_CRON`（例如 `0 4 1 * *`）。
@@ -50,7 +52,6 @@ docker compose up --build -d
 
 ![Screenshot 0](images/screen0.png)
 ![Screenshot 1](images/screen1.png)
-![Screenshot 2](images/screen2.png)
 ![Screenshot 3](images/screen3.png)
 
 ## 二、配置说明

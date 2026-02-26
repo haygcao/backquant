@@ -1,5 +1,7 @@
 # BackQuant Quantitative Backtesting Platform
 
+English | [简体中文](README.md)
+
 This repository includes a backend (Flask + RQAlpha) and a frontend (Vue 3), plus an integrated Research workspace (Jupyter Lab).
 **Docker is the recommended deployment** so you can pull the image and run it directly with Flask, Jupyter, Nginx, and the built frontend.
 
@@ -46,8 +48,9 @@ Note: Backend API and Jupyter are reverse-proxied under the same domain (`/api`,
 
 ### Screenshots
 
+![Screenshot 0](images/screen0.png)
 ![Screenshot 1](images/screen1.png)
-![Screenshot 2](images/screen2.png)
+![Screenshot 3](images/screen3.png)
 
 ## II. Configuration
 
