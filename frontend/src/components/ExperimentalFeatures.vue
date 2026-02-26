@@ -3,11 +3,16 @@
     <div class="login-container">
       <div class="system-features">
         <div class="feature-item">
-          <span class="feature-icon">🔒</span>
+          <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
           <span class="feature-text">本地部署</span>
         </div>
         <div class="feature-item">
-          <span class="feature-icon">🛡️</span>
+          <svg class="feature-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+          </svg>
           <span class="feature-text">开源安全</span>
         </div>
       </div>
@@ -400,30 +405,34 @@ export default {
 
 .system-features {
   display: flex;
-  gap: 32px;
-  padding: 16px 24px;
-  background: #fafafa;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  gap: 48px;
+  padding: 0;
+  background: transparent;
+  border: none;
   width: 100%;
   justify-content: center;
+  margin-bottom: 20px;
 }
 
 .feature-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  color: #333;
-  font-weight: 500;
+  gap: 6px;
+  font-size: 12px;
+  color: #666;
+  font-weight: 400;
 }
 
 .feature-icon {
-  font-size: 18px;
+  width: 16px;
+  height: 16px;
+  color: #666;
+  flex-shrink: 0;
 }
 
 .feature-text {
-  font-weight: 500;
+  font-weight: 400;
+  letter-spacing: 0.3px;
 }
 
 .login-form {
