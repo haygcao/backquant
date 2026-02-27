@@ -67,6 +67,8 @@ def do_full_download(task_id: str):
     db_path = Path(__file__).parent.parent.parent / "data" / "market_data.sqlite3"
     temp_dir = None
     stop_monitoring = threading.Event()
+    download_url = None
+    total_bytes = 0
 
     def _dir_size_bytes(path: Path) -> int:
         """Calculate directory size in bytes."""
@@ -86,26 +88,17 @@ def do_full_download(task_id: str):
                     continue
         return total
 
-    def _get_total_bytes() -> int:
-        """Get total bundle size from HTTP HEAD request."""
+    def _get_bundle_info():
+        """Get bundle URL and total size from HTTP HEAD request."""
+        nonlocal download_url, total_bytes
         import urllib.request
         from datetime import datetime
-
-        # Try to get from environment
-        raw = os.environ.get('RQALPHA_BUNDLE_TOTAL_BYTES', '').strip()
-        if raw:
-            try:
-                value = int(raw)
-                if value > 0:
-                    return value
-            except ValueError:
-                pass
 
         # Generate URL candidates
         base = os.environ.get('RQALPHA_BUNDLE_URL_BASE',
                              'http://bundle.assets.ricequant.com/bundles_v4').strip()
         if not base:
-            return 0
+            return
 
         now = datetime.utcnow()
         year = now.year
@@ -125,16 +118,19 @@ def do_full_download(task_id: str):
                 with urllib.request.urlopen(request, timeout=5) as response:
                     length = response.headers.get('Content-Length')
                 if length:
-                    return int(length)
+                    download_url = url
+                    total_bytes = int(length)
+                    tm.log(task_id, 'INFO', f'下载地址: {url}')
+                    tm.log(task_id, 'INFO', f'数据包大小: {total_bytes / (1024*1024):.1f}MB')
+                    return
             except Exception:
                 continue
-        return 0
 
     def monitor_progress():
         """Monitor download progress in background thread."""
-        total_bytes = _get_total_bytes()
-        if total_bytes > 0:
-            tm.log(task_id, 'INFO', f'数据包总大小: {total_bytes / (1024*1024):.1f}MB')
+        last_downloaded = 0
+        last_extracted = 0
+        download_complete = False
 
         while not stop_monitoring.is_set():
             try:
@@ -144,26 +140,38 @@ def do_full_download(task_id: str):
 
                 # Check temp_dir for extracted size
                 if temp_dir:
-                    extracted_bytes = _dir_size_bytes(Path(temp_dir))
+                    temp_bundle = Path(temp_dir) / 'bundle'
+                    extracted_bytes = _dir_size_bytes(temp_bundle)
                 else:
                     extracted_bytes = 0
 
-                if total_bytes > 0 and downloaded_bytes > 0:
-                    # Downloading phase
-                    percent = min(downloaded_bytes / total_bytes * 100, 99.9)
-                    progress = int(10 + percent * 0.5)  # Map to 10-60%
-                    tm.update_progress(
-                        task_id, progress, 'download',
-                        f'正在下载: {downloaded_bytes/(1024*1024):.1f}MB / {total_bytes/(1024*1024):.1f}MB ({percent:.1f}%)'
-                    )
-                elif total_bytes > 0 and downloaded_bytes >= total_bytes and extracted_bytes > 0:
-                    # Extracting phase
-                    extract_percent = min(extracted_bytes / total_bytes * 100, 99.9)
-                    progress = int(60 + extract_percent * 0.2)  # Map to 60-80%
-                    tm.update_progress(
-                        task_id, progress, 'extract',
-                        f'正在解压: {extracted_bytes/(1024*1024):.1f}MB ({extract_percent:.1f}%)'
-                    )
+                # Determine current phase
+                if total_bytes > 0:
+                    if downloaded_bytes < total_bytes * 0.99:
+                        # Phase 1: Downloading
+                        if downloaded_bytes != last_downloaded:
+                            percent = (downloaded_bytes / total_bytes) * 100
+                            progress = int(10 + percent * 0.5)  # Map to 10-60%
+                            tm.update_progress(
+                                task_id, progress, 'download',
+                                f'{downloaded_bytes/(1024*1024):.1f}MB / {total_bytes/(1024*1024):.1f}MB'
+                            )
+                            last_downloaded = downloaded_bytes
+                    elif not download_complete:
+                        # Download just completed
+                        download_complete = True
+                        tm.update_progress(task_id, 60, 'extract', '下载完成，开始解压...')
+                        tm.log(task_id, 'INFO', '下载完成，开始解压')
+                    elif extracted_bytes > 0:
+                        # Phase 2: Extracting
+                        if extracted_bytes != last_extracted:
+                            extract_percent = min((extracted_bytes / total_bytes) * 100, 99.9)
+                            progress = int(60 + extract_percent * 0.2)  # Map to 60-80%
+                            tm.update_progress(
+                                task_id, progress, 'extract',
+                                f'{extracted_bytes/(1024*1024):.1f}MB'
+                            )
+                            last_extracted = extracted_bytes
 
                 time.sleep(2)  # Update every 2 seconds
             except Exception as e:
@@ -171,8 +179,11 @@ def do_full_download(task_id: str):
                 time.sleep(2)
 
     try:
-        # Use temporary directory for download (similar to docker-entrypoint.sh)
-        tm.update_progress(task_id, 0, 'download', '准备下载环境...')
+        # Get bundle info first
+        tm.update_progress(task_id, 0, 'prepare', '准备下载环境...')
+        _get_bundle_info()
+
+        # Use temporary directory for download
         temp_dir = tempfile.mkdtemp(prefix='rqalpha-bundle-')
         tm.log(task_id, 'INFO', f'使用临时目录: {temp_dir}')
 
