@@ -90,6 +90,20 @@
                 <canvas ref="chartCanvas"></canvas>
               </div>
             </div>
+            <div class="files-list-wrapper">
+              <h4 class="section-title">数据文件列表</h4>
+              <div class="files-list-container">
+                <div v-if="!files || files.length === 0" class="empty-files">
+                  <p>暂无文件信息</p>
+                </div>
+                <div v-else class="files-list">
+                  <div v-for="(file, index) in files" :key="index" class="file-item">
+                    <div class="file-name">{{ file.file_name }}</div>
+                    <div class="file-size">{{ formatSize(file.file_size) }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -112,6 +126,7 @@ export default {
       loading: false,
       error: null,
       data: {},
+      files: [],
       analyzing: false,
       currentTaskId: null
     };
@@ -157,7 +172,9 @@ export default {
         });
 
         if (response.ok) {
-          this.data = await response.json();
+          const result = await response.json();
+          this.data = result;
+          this.files = result.files || [];
           if (this.data.analyzed) {
             this.$nextTick(() => {
               this.renderChart();
@@ -428,6 +445,67 @@ export default {
   background: #fafafa;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
+}
+
+.files-list-wrapper {
+  flex: 0 0 auto;
+  width: 300px;
+  padding: 16px;
+  background: #fafafa;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.files-list-container {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.empty-files {
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-files p {
+  margin: 0;
+  color: #999;
+  font-size: 12px;
+}
+
+.files-list {
+  padding: 8px;
+}
+
+.file-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 8px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 11px;
+}
+
+.file-item:last-child {
+  border-bottom: none;
+}
+
+.file-name {
+  flex: 1;
+  color: #000;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+
+.file-size {
+  flex-shrink: 0;
+  color: #666;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 10px;
 }
 
 .data-table {

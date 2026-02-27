@@ -46,26 +46,40 @@ def _scan_files(bundle_path: Path) -> Dict:
     total_files = 0
     total_size = 0
     last_modified = None
+    files_list = []
 
     if not bundle_path.exists():
         return {
             'total_files': 0,
             'total_size_bytes': 0,
-            'last_modified': None
+            'last_modified': None,
+            'files': []
         }
 
     for file_path in bundle_path.rglob('*'):
         if file_path.is_file():
             total_files += 1
-            total_size += file_path.stat().st_size
+            file_size = file_path.stat().st_size
+            total_size += file_size
             mtime = datetime.fromtimestamp(file_path.stat().st_mtime)
+
+            # Collect file info
+            relative_path = file_path.relative_to(bundle_path)
+            files_list.append({
+                'name': file_path.name,
+                'path': str(relative_path),
+                'size': file_size,
+                'modified': mtime.isoformat()
+            })
+
             if last_modified is None or mtime > last_modified:
                 last_modified = mtime
 
     return {
         'total_files': total_files,
         'total_size_bytes': total_size,
-        'last_modified': last_modified.isoformat() if last_modified else None
+        'last_modified': last_modified.isoformat() if last_modified else None,
+        'files': files_list
     }
 
 
@@ -174,6 +188,19 @@ def _save_stats(db_path: Path, bundle_path: Path, file_stats: Dict, data_counts:
         data_counts['index_count'],
         data_counts['bond_count']
     ))
+
+    # Clear old file records and insert new ones
+    conn.execute("DELETE FROM market_data_files")
+    for file_info in file_stats.get('files', []):
+        conn.execute("""
+            INSERT INTO market_data_files (file_name, file_path, file_size, modified_at)
+            VALUES (?, ?, ?, ?)
+        """, (
+            file_info['name'],
+            file_info['path'],
+            file_info['size'],
+            file_info['modified']
+        ))
 
     conn.commit()
     conn.close()

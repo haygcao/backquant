@@ -108,5 +108,21 @@ def init_database(db_path: Path):
         ON market_data_cron_logs(trigger_time DESC)
     """)
 
+    # 6. Bundle files table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS market_data_files (
+            file_id INTEGER PRIMARY KEY AUTOINCREMENT,
+            file_name TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            file_size INTEGER,
+            modified_at TEXT
+        )
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_files_name
+        ON market_data_files(file_name)
+    """)
+
     conn.commit()
     conn.close()

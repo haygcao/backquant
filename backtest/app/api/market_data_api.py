@@ -35,18 +35,30 @@ def get_overview():
         conn.row_factory = sqlite3.Row
         cursor = conn.execute("SELECT * FROM market_data_stats WHERE id = 1")
         row = cursor.fetchone()
-        conn.close()
 
         if not row:
+            conn.close()
             return jsonify({
                 'analyzed': False,
                 'message': '尚未分析数据，请先触发数据分析'
             }), 200
 
-        return jsonify({
+        result = {
             'analyzed': True,
             'data': dict(row)
-        }), 200
+        }
+
+        # Get file list
+        cursor = conn.execute("""
+            SELECT file_name, file_path, file_size, modified_at
+            FROM market_data_files
+            ORDER BY file_name
+        """)
+        files = [dict(row) for row in cursor.fetchall()]
+        result['files'] = files
+
+        conn.close()
+        return jsonify(result), 200
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
