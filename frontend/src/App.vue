@@ -107,6 +107,13 @@ export default {
           path: '/research',
           requireAuth: true,
           iconPath: 'M6 8h.01 M12 8h.01 M18 8h.01 M4 16h16'
+        },
+        {
+          id: 'market-data',
+          label: '行情数据管理',
+          path: '/market-data',
+          requireAuth: true,
+          iconPath: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4'
         }
       ],
       sideNavItems: [

@@ -32,6 +32,22 @@ const ResearchNotebook = () => import(
   /* webpackChunkName: "route-research" */
   '@/pages/ResearchNotebook.vue'
 );
+const MarketDataLayout = () => import(
+  /* webpackChunkName: "route-market-data" */
+  '@/pages/MarketData/Layout.vue'
+);
+const MarketDataOverview = () => import(
+  /* webpackChunkName: "route-market-data" */
+  '@/pages/MarketData/Overview.vue'
+);
+const MarketDataDownload = () => import(
+  /* webpackChunkName: "route-market-data" */
+  '@/pages/MarketData/Download.vue'
+);
+const MarketDataConfig = () => import(
+  /* webpackChunkName: "route-market-data" */
+  '@/pages/MarketData/Config.vue'
+);
 
 const routes = [
     { path: '/', redirect: '/login' },
@@ -42,6 +58,17 @@ const routes = [
     { path: '/backtests/:runId', component: BacktestResult, name: 'backtest-result' },
     { path: '/research', component: ResearchIndex, name: 'research-index' },
     { path: '/research/:id/notebook', component: ResearchNotebook, name: 'research-notebook' },
+    {
+      path: '/market-data',
+      component: MarketDataLayout,
+      name: 'market-data',
+      children: [
+        { path: '', redirect: { name: 'market-data-overview' } },
+        { path: 'overview', component: MarketDataOverview, name: 'market-data-overview' },
+        { path: 'download', component: MarketDataDownload, name: 'market-data-download' },
+        { path: 'config', component: MarketDataConfig, name: 'market-data-config' }
+      ]
+    },
 
     // 旧页面保留（避免破坏已有能力 / 兼容历史入口）
     { path: '/backtest/workbench', redirect: '/strategies', name: 'backtest-workbench' },
