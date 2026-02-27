@@ -137,9 +137,16 @@ export default {
         alert('网络错误，请重试');
       }
     },
-    handleTaskComplete() {
+    handleTaskComplete(task) {
       this.currentTaskId = null;
       this.hasRunningTask = false;
+
+      // Show result notification
+      if (task.status === 'success') {
+        alert('✓ 任务执行成功！');
+      } else if (task.status === 'failed') {
+        alert('✗ 任务执行失败：' + (task.error || '未知错误'));
+      }
     }
   }
 };
