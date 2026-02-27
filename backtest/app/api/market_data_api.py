@@ -117,15 +117,19 @@ def trigger_incremental():
 @auth_required
 def trigger_full():
     """Trigger full download."""
+    from app.market_data.utils import get_bundle_update_status
+
     bundle_path = _get_bundle_path()
     force = request.json.get('force', False) if request.json else False
 
     # Check if confirmation needed
-    if not force and is_current_month_updated(bundle_path):
-        return jsonify({
-            'need_confirm': True,
-            'message': '检测到当月已有更新，确定要重新下载吗？'
-        }), 200
+    if not force:
+        needs_confirm, message = get_bundle_update_status(bundle_path)
+        if needs_confirm and message:
+            return jsonify({
+                'need_confirm': True,
+                'message': message
+            }), 200
 
     try:
         tm = get_task_manager()
