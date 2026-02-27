@@ -218,11 +218,10 @@ export default {
 }
 
 .btn {
-  width: 100%;
   border: 1px solid #d0d0d0;
   background: #fff;
   color: #000;
-  padding: 8px 12px;
+  padding: 8px 16px;
   border-radius: 2px;
   cursor: pointer;
   font-size: 12px;

@@ -186,7 +186,8 @@ export default {
         if (response.ok) {
           const result = await response.json();
           this.data = result;
-          this.files = result.files || [];
+          // Sort files by size (largest to smallest)
+          this.files = (result.files || []).sort((a, b) => b.file_size - a.file_size);
           if (this.data.analyzed) {
             this.$nextTick(() => {
               this.renderChart();

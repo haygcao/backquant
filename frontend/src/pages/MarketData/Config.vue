@@ -5,39 +5,42 @@
         <h3>定时任务配置</h3>
       </div>
       <div class="panel-body">
-        <div class="form-section">
-          <label class="checkbox-label">
-            <input type="checkbox" v-model="config.enabled" class="checkbox" />
-            <span>启用定时任务</span>
-          </label>
-        </div>
+        <div v-if="configLoading" class="loading-state">加载配置中...</div>
+        <div v-else>
+          <div class="form-section">
+            <label class="checkbox-label">
+              <input type="checkbox" v-model="config.enabled" class="checkbox" />
+              <span>启用定时任务</span>
+            </label>
+          </div>
 
-        <div class="form-section">
-          <div class="form-row">
-            <div class="form-field">
-              <label class="field-label">Cron 表达式</label>
-              <input
-                v-model="config.cron_expression"
-                type="text"
-                placeholder="0 2 1 * *"
-                class="text-input"
-              />
-              <span class="hint-text">示例: 0 2 1 * * (每月1日凌晨2点)</span>
-            </div>
-            <div class="form-field">
-              <label class="field-label">任务类型</label>
-              <select v-model="config.task_type" class="select-input">
-                <option value="incremental">增量更新</option>
-                <option value="full">全量下载</option>
-              </select>
+          <div class="form-section">
+            <div class="form-row">
+              <div class="form-field">
+                <label class="field-label">Cron 表达式</label>
+                <input
+                  v-model="config.cron_expression"
+                  type="text"
+                  placeholder="0 2 1 * *"
+                  class="text-input"
+                />
+                <span class="hint-text">示例: 0 2 1 * * (每月1日凌晨2点)</span>
+              </div>
+              <div class="form-field">
+                <label class="field-label">任务类型</label>
+                <select v-model="config.task_type" class="select-input">
+                  <option value="incremental">增量更新</option>
+                  <option value="full">全量下载</option>
+                </select>
+              </div>
             </div>
           </div>
-        </div>
 
-        <div class="form-actions">
-          <button @click="saveConfig" class="btn btn-primary" :disabled="saving">
-            {{ saving ? '保存中...' : '保存配置' }}
-          </button>
+          <div class="form-actions">
+            <button @click="saveConfig" class="btn btn-primary" :disabled="saving">
+              {{ saving ? '保存中...' : '保存配置' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -91,6 +94,7 @@ export default {
         cron_expression: '0 2 1 * *',
         task_type: 'incremental'
       },
+      configLoading: true,
       saving: false,
       logs: [],
       logsLoading: false
@@ -102,6 +106,7 @@ export default {
   },
   methods: {
     async loadConfig() {
+      this.configLoading = true;
       try {
         const response = await fetch('/api/market-data/cron/config', {
           headers: {
@@ -119,6 +124,8 @@ export default {
         }
       } catch (err) {
         console.error('Failed to load config:', err);
+      } finally {
+        this.configLoading = false;
       }
     },
     async saveConfig() {

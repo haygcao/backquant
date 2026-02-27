@@ -74,7 +74,12 @@ def do_full_download(task_id: str):
         tm.update_progress(task_id, 0, 'download', '开始下载...')
         zip_url = "https://bundle.rqalpha.io/bundle.zip"
 
-        response = requests.get(zip_url, stream=True)
+        tm.log(task_id, 'INFO', f'正在从 {zip_url} 下载数据包...')
+
+        # Add timeout and better error handling
+        response = requests.get(zip_url, stream=True, timeout=30)
+        response.raise_for_status()
+
         total_size = int(response.headers.get('content-length', 0))
         downloaded = 0
 
