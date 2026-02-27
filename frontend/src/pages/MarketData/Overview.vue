@@ -92,21 +92,28 @@
             </div>
             <div class="files-list-wrapper">
               <h4 class="section-title">数据文件列表</h4>
-              <div class="files-list-container">
+              <div class="files-table-container">
                 <div v-if="!files || files.length === 0" class="empty-files">
                   <p>暂无文件信息</p>
                 </div>
-                <div v-else class="files-list">
-                  <div v-for="(file, index) in files" :key="index" class="file-item">
-                    <div class="file-info">
-                      <div class="file-name">{{ file.file_name }}</div>
-                      <div class="file-meta">
-                        <span class="file-size">{{ formatSize(file.file_size) }}</span>
-                        <span class="file-modified">{{ formatFileDate(file.modified_at) }}</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                <table v-else class="files-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 60px; text-align: center">#</th>
+                      <th>文件名</th>
+                      <th style="width: 100px; text-align: right">大小</th>
+                      <th style="width: 160px; text-align: center">修改时间</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr v-for="(file, index) in files" :key="index">
+                      <td class="row-number">{{ index + 1 }}</td>
+                      <td class="file-name">{{ file.file_name }}</td>
+                      <td class="file-size">{{ formatSize(file.file_size) }}</td>
+                      <td class="file-modified">{{ formatFileDate(file.modified_at) }}</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -328,23 +335,13 @@ export default {
     formatFileDate(dateStr) {
       if (!dateStr) return '-';
       const date = new Date(dateStr);
-      const now = new Date();
-      const diff = now - date;
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-
-      if (days === 0) {
-        return '今天';
-      } else if (days === 1) {
-        return '昨天';
-      } else if (days < 7) {
-        return `${days}天前`;
-      } else if (days < 30) {
-        return `${Math.floor(days / 7)}周前`;
-      } else if (days < 365) {
-        return `${Math.floor(days / 30)}月前`;
-      } else {
-        return date.toLocaleDateString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit' });
-      }
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     }
   }
 };
@@ -475,18 +472,15 @@ export default {
 
 .files-list-wrapper {
   flex: 0 0 auto;
-  width: 300px;
+  width: 400px;
   padding: 16px;
   background: #fafafa;
   border: 1px solid #e0e0e0;
   border-radius: 4px;
 }
 
-.files-list-container {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  max-height: 300px;
+.files-table-container {
+  max-height: 350px;
   overflow-y: auto;
 }
 
@@ -501,46 +495,60 @@ export default {
   font-size: 12px;
 }
 
-.files-list {
-  padding: 8px;
+.files-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  font-size: 11px;
 }
 
-.file-item {
-  padding: 8px;
+.files-table thead th {
+  background: #fafafa;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e0e0e0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #000;
+  text-align: left;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.files-table tbody td {
+  padding: 6px 12px;
   border-bottom: 1px solid #f0f0f0;
+  color: #000;
 }
 
-.file-item:last-child {
+.files-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.file-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.files-table tbody tr:hover {
+  background: #f9f9f9;
 }
 
-.file-name {
-  color: #000;
-  font-size: 11px;
+.files-table .file-name {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.file-meta {
-  display: flex;
-  gap: 8px;
-  font-size: 10px;
-}
-
-.file-size {
-  color: #666;
+.files-table .file-size {
+  text-align: right;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #666;
 }
 
-.file-modified {
-  color: #999;
+.files-table .file-modified {
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: #666;
+  font-size: 10px;
 }
 
 .data-table {
