@@ -110,7 +110,12 @@ export default {
         });
 
         if (response.ok) {
-          this.config = await response.json();
+          const data = await response.json();
+          // Convert enabled from integer to boolean
+          this.config = {
+            ...data,
+            enabled: Boolean(data.enabled)
+          };
         }
       } catch (err) {
         console.error('Failed to load config:', err);

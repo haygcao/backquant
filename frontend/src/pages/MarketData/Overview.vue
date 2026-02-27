@@ -441,9 +441,9 @@ export default {
 
 .data-section {
   display: flex;
-  gap: 48px;
+  gap: 16px;
   align-items: flex-start;
-  justify-content: center;
+  flex-wrap: wrap;
 }
 
 .section-title {
@@ -454,8 +454,9 @@ export default {
 }
 
 .data-table-wrapper {
-  flex: 0 0 auto;
-  width: 400px;
+  flex: 1 1 350px;
+  min-width: 350px;
+  max-width: 450px;
   padding: 16px;
   background: #fafafa;
   border: 1px solid #e0e0e0;
@@ -463,7 +464,8 @@ export default {
 }
 
 .chart-wrapper {
-  flex: 0 0 auto;
+  flex: 1 1 400px;
+  min-width: 400px;
   padding: 16px;
   background: #fafafa;
   border: 1px solid #e0e0e0;
@@ -471,8 +473,9 @@ export default {
 }
 
 .files-list-wrapper {
-  flex: 0 0 auto;
-  width: 400px;
+  flex: 1 1 350px;
+  min-width: 350px;
+  max-width: 500px;
   padding: 16px;
   background: #fafafa;
   border: 1px solid #e0e0e0;

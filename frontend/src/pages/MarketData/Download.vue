@@ -3,25 +3,12 @@
     <div class="actions-grid">
       <div class="action-panel">
         <div class="panel-header">
-          <h3>增量更新</h3>
-          <span class="badge">推荐</span>
-        </div>
-        <div class="panel-body">
-          <p class="panel-desc">使用 rqalpha update-bundle 命令追加最新数据，适用于日常更新</p>
-          <button @click="triggerIncremental" :disabled="hasRunningTask" class="btn btn-primary">
-            开始增量更新
-          </button>
-        </div>
-      </div>
-
-      <div class="action-panel">
-        <div class="panel-header">
           <h3>全量下载</h3>
         </div>
         <div class="panel-body">
           <p class="panel-desc">下载完整数据包并解压，适用于首次安装或数据重建</p>
-          <button @click="triggerFull" :disabled="hasRunningTask" class="btn btn-secondary">
-            开始全量下载
+          <button @click="triggerFull" :disabled="hasRunningTask" class="btn btn-primary">
+            {{ hasRunningTask ? '下载中...' : '开始全量下载' }}
           </button>
         </div>
       </div>
