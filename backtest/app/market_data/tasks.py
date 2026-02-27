@@ -59,18 +59,126 @@ def do_full_download(task_id: str):
     from app.market_data.analyzer import analyze_bundle
     import tempfile
     import shutil
-    import re
+    import threading
+    import time
 
     tm = get_task_manager()
     bundle_path = Path(os.environ.get('RQALPHA_BUNDLE_PATH', '/data/rqalpha/bundle'))
     db_path = Path(__file__).parent.parent.parent / "data" / "market_data.sqlite3"
     temp_dir = None
+    stop_monitoring = threading.Event()
+
+    def _dir_size_bytes(path: Path) -> int:
+        """Calculate directory size in bytes."""
+        if not path.exists():
+            return 0
+        if path.is_file():
+            try:
+                return path.stat().st_size
+            except OSError:
+                return 0
+        total = 0
+        for root, _dirs, files in os.walk(path):
+            for name in files:
+                try:
+                    total += (Path(root) / name).stat().st_size
+                except OSError:
+                    continue
+        return total
+
+    def _get_total_bytes() -> int:
+        """Get total bundle size from HTTP HEAD request."""
+        import urllib.request
+        from datetime import datetime
+
+        # Try to get from environment
+        raw = os.environ.get('RQALPHA_BUNDLE_TOTAL_BYTES', '').strip()
+        if raw:
+            try:
+                value = int(raw)
+                if value > 0:
+                    return value
+            except ValueError:
+                pass
+
+        # Generate URL candidates
+        base = os.environ.get('RQALPHA_BUNDLE_URL_BASE',
+                             'http://bundle.assets.ricequant.com/bundles_v4').strip()
+        if not base:
+            return 0
+
+        now = datetime.utcnow()
+        year = now.year
+        month = now.month
+        candidates = []
+        for _ in range(12):
+            candidates.append(f"{base}/rqbundle_{year}{month:02d}.tar.bz2")
+            month -= 1
+            if month <= 0:
+                month = 12
+                year -= 1
+
+        # Try each URL
+        for url in candidates:
+            try:
+                request = urllib.request.Request(url, method='HEAD')
+                with urllib.request.urlopen(request, timeout=5) as response:
+                    length = response.headers.get('Content-Length')
+                if length:
+                    return int(length)
+            except Exception:
+                continue
+        return 0
+
+    def monitor_progress():
+        """Monitor download progress in background thread."""
+        total_bytes = _get_total_bytes()
+        if total_bytes > 0:
+            tm.log(task_id, 'INFO', f'数据包总大小: {total_bytes / (1024*1024):.1f}MB')
+
+        while not stop_monitoring.is_set():
+            try:
+                # Check /tmp/rq.bundle for downloaded size
+                temp_bundle_download = Path('/tmp/rq.bundle')
+                downloaded_bytes = _dir_size_bytes(temp_bundle_download)
+
+                # Check temp_dir for extracted size
+                if temp_dir:
+                    extracted_bytes = _dir_size_bytes(Path(temp_dir))
+                else:
+                    extracted_bytes = 0
+
+                if total_bytes > 0 and downloaded_bytes > 0:
+                    # Downloading phase
+                    percent = min(downloaded_bytes / total_bytes * 100, 99.9)
+                    progress = int(10 + percent * 0.5)  # Map to 10-60%
+                    tm.update_progress(
+                        task_id, progress, 'download',
+                        f'正在下载: {downloaded_bytes/(1024*1024):.1f}MB / {total_bytes/(1024*1024):.1f}MB ({percent:.1f}%)'
+                    )
+                elif total_bytes > 0 and downloaded_bytes >= total_bytes and extracted_bytes > 0:
+                    # Extracting phase
+                    extract_percent = min(extracted_bytes / total_bytes * 100, 99.9)
+                    progress = int(60 + extract_percent * 0.2)  # Map to 60-80%
+                    tm.update_progress(
+                        task_id, progress, 'extract',
+                        f'正在解压: {extracted_bytes/(1024*1024):.1f}MB ({extract_percent:.1f}%)'
+                    )
+
+                time.sleep(2)  # Update every 2 seconds
+            except Exception as e:
+                tm.log(task_id, 'WARNING', f'进度监控错误: {str(e)}')
+                time.sleep(2)
 
     try:
         # Use temporary directory for download (similar to docker-entrypoint.sh)
         tm.update_progress(task_id, 0, 'download', '准备下载环境...')
         temp_dir = tempfile.mkdtemp(prefix='rqalpha-bundle-')
         tm.log(task_id, 'INFO', f'使用临时目录: {temp_dir}')
+
+        # Start progress monitoring thread
+        monitor_thread = threading.Thread(target=monitor_progress, daemon=True)
+        monitor_thread.start()
 
         # Download to temporary directory
         tm.update_progress(task_id, 5, 'download', '开始下载数据包...')
@@ -87,73 +195,17 @@ def do_full_download(task_id: str):
             bufsize=1
         )
 
-        # Parse output for progress information
-        total_size = None
-        downloaded_size = 0
-        is_downloading = False
-        is_extracting = False
-
+        # Read output and log
         for line in process.stdout:
             line = line.strip()
-            if not line:
-                continue
-
-            tm.log(task_id, 'INFO', line)
-
-            # Detect download phase
-            if 'Downloading' in line or 'downloading' in line:
-                is_downloading = True
-                is_extracting = False
-                tm.update_progress(task_id, 10, 'download', '正在下载数据包...')
-
-            # Detect extraction phase
-            elif 'Extracting' in line or 'extracting' in line or 'Unpack' in line:
-                is_downloading = False
-                is_extracting = True
-                tm.update_progress(task_id, 60, 'extract', '正在解压数据包...')
-
-            # Parse download progress (format: "Downloaded 123.45 MB / 500.00 MB")
-            if is_downloading:
-                match = re.search(r'(\d+\.?\d*)\s*(MB|GB|KB).*?/\s*(\d+\.?\d*)\s*(MB|GB|KB)', line)
-                if match:
-                    downloaded = float(match.group(1))
-                    downloaded_unit = match.group(2)
-                    total = float(match.group(3))
-                    total_unit = match.group(4)
-
-                    # Convert to MB for consistency
-                    if downloaded_unit == 'GB':
-                        downloaded *= 1024
-                    elif downloaded_unit == 'KB':
-                        downloaded /= 1024
-
-                    if total_unit == 'GB':
-                        total *= 1024
-                    elif total_unit == 'KB':
-                        total /= 1024
-
-                    total_size = total
-                    downloaded_size = downloaded
-
-                    # Calculate progress (10-60% for download phase)
-                    if total_size > 0:
-                        progress = int(10 + (downloaded_size / total_size) * 50)
-                        tm.update_progress(
-                            task_id, progress, 'download',
-                            f'正在下载: {downloaded_size:.1f}MB / {total_size:.1f}MB ({progress-10}%)'
-                        )
-
-            # Parse extraction progress
-            elif is_extracting:
-                # Look for file count or percentage
-                match = re.search(r'(\d+)%', line)
-                if match:
-                    extract_pct = int(match.group(1))
-                    # Map extraction progress to 60-80%
-                    progress = int(60 + (extract_pct / 100) * 20)
-                    tm.update_progress(task_id, progress, 'extract', f'正在解压: {extract_pct}%')
+            if line:
+                tm.log(task_id, 'INFO', line)
 
         process.wait()
+
+        # Stop progress monitoring
+        stop_monitoring.set()
+        monitor_thread.join(timeout=5)
 
         if process.returncode != 0:
             raise RuntimeError(f'rqalpha download-bundle 失败，退出码: {process.returncode}')
@@ -166,8 +218,8 @@ def do_full_download(task_id: str):
             raise RuntimeError(f'下载的 bundle 目录不存在: {temp_bundle}')
 
         # Calculate total size to copy
-        total_copy_size = sum(f.stat().st_size for f in temp_bundle.rglob('*') if f.is_file())
-        copied_size = 0
+        total_copy_size = _dir_size_bytes(temp_bundle)
+        tm.log(task_id, 'INFO', f'准备复制 {total_copy_size/(1024*1024):.1f}MB 数据')
 
         # Clear target directory contents
         tm.log(task_id, 'INFO', f'清理目标目录: {bundle_path}')
@@ -180,25 +232,14 @@ def do_full_download(task_id: str):
         else:
             bundle_path.mkdir(parents=True, exist_ok=True)
 
-        # Copy files from temp to target with progress
+        # Copy files from temp to target
         tm.log(task_id, 'INFO', f'复制文件到: {bundle_path}')
         for item in temp_bundle.iterdir():
             dest = bundle_path / item.name
             if item.is_dir():
                 shutil.copytree(item, dest, dirs_exist_ok=True)
-                # Update progress
-                for f in item.rglob('*'):
-                    if f.is_file():
-                        copied_size += f.stat().st_size
-                        if total_copy_size > 0:
-                            progress = int(80 + (copied_size / total_copy_size) * 15)
-                            tm.update_progress(task_id, progress, 'copy', f'正在复制: {progress-80}%')
             else:
                 shutil.copy2(item, dest)
-                copied_size += item.stat().st_size
-                if total_copy_size > 0:
-                    progress = int(80 + (copied_size / total_copy_size) * 15)
-                    tm.update_progress(task_id, progress, 'copy', f'正在复制: {progress-80}%')
 
         tm.update_progress(task_id, 95, 'complete', '下载完成，准备分析数据...')
         tm.log(task_id, 'INFO', '数据包下载完成')
@@ -211,6 +252,7 @@ def do_full_download(task_id: str):
         tm.log(task_id, 'INFO', f'已提交分析任务: {analyze_task_id}')
 
     except Exception as e:
+        stop_monitoring.set()
         tm.log(task_id, 'ERROR', f'全量下载失败: {str(e)}')
         raise
     finally:
