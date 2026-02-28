@@ -55,6 +55,72 @@ _DEFAULT_DEMO_STRATEGY_CODE = textwrap.dedent(
     """
 )
 
+_GOLDEN_CROSS_DEMO_STRATEGY_ID = "golden_cross_demo"
+_GOLDEN_CROSS_DEMO_STRATEGY_CODE = textwrap.dedent(
+    """\
+    import talib
+    from rqalpha.api import *
+
+
+    # 在这个方法中编写任何的初始化逻辑。context对象将会在你的算法策略的任何方法之间做传递。
+    def init(context):
+        context.s1 = "000001.XSHE"
+
+        # 使用MACD需要设置长短均线和macd平均线的参数
+        context.SHORTPERIOD = 12
+        context.LONGPERIOD = 26
+        context.SMOOTHPERIOD = 9
+        context.OBSERVATION = 100
+
+
+    # 你选择的证券的数据更新将会触发此段逻辑，例如日或分钟历史数据切片或者是实时数据切片更新
+    def handle_bar(context, bar_dict):
+        # 开始编写你的主要的算法逻辑
+
+        # bar_dict[order_book_id] 可以拿到某个证券的bar信息
+        # context.portfolio 可以拿到现在的投资组合状态信息
+
+        # 使用order_shares(id_or_ins, amount)方法进行落单
+
+        # TODO: 开始编写你的算法吧！
+
+        # 读取历史数据，使用sma方式计算均线准确度和数据长度无关，但是在使用ema方式计算均线时建议将历史数据窗口适当放大，结果会更加准确
+        prices = history_bars(context.s1, context.OBSERVATION,'1d','close')
+
+        # 用Talib计算MACD取值，得到三个时间序列数组，分别为macd, signal 和 hist
+        macd, signal, hist = talib.MACD(prices, context.SHORTPERIOD,
+                                        context.LONGPERIOD, context.SMOOTHPERIOD)
+
+        plot("macd", macd[-1])
+        plot("macd signal", signal[-1])
+
+        # macd 是长短均线的差值，signal是macd的均线，使用macd策略有几种不同的方法，我们这里采用macd线突破signal线的判断方法
+
+        # 如果macd从上往下跌破macd_signal
+
+        if macd[-1] - signal[-1] < 0 and macd[-2] - signal[-2] > 0:
+            # 获取当前投资组合中股票的仓位
+            curPosition = get_position(context.s1).quantity
+            #进行清仓
+            if curPosition > 0:
+                order_target_value(context.s1, 0)
+
+        # 如果短均线从下往上突破长均线，为入场信号
+        if macd[-1] - signal[-1] > 0 and macd[-2] - signal[-2] < 0:
+            # 满仓入股
+            order_target_percent(context.s1, 1)
+    """
+)
+
+# 内置策略列表（不可删除）
+_BUILTIN_STRATEGY_IDS = {_DEFAULT_DEMO_STRATEGY_ID, _GOLDEN_CROSS_DEMO_STRATEGY_ID}
+
+_BUILTIN_STRATEGIES = {
+    _DEFAULT_DEMO_STRATEGY_ID: _DEFAULT_DEMO_STRATEGY_CODE,
+    _GOLDEN_CROSS_DEMO_STRATEGY_ID: _GOLDEN_CROSS_DEMO_STRATEGY_CODE,
+}
+
+
 _PROCESS_LOCK = threading.Lock()
 _RUNNING_PROCESSES: dict[str, subprocess.Popen] = {}
 _CANCEL_REQUESTED_JOB_IDS: set[str] = set()
@@ -577,18 +643,35 @@ def save_strategy(strategy_id: str, code: str) -> Path:
 
 
 def ensure_default_demo_strategy() -> bool:
-    try:
-        path = _strategy_path(_DEFAULT_DEMO_STRATEGY_ID)
-    except Exception:
-        logging.getLogger(__name__).exception("failed to resolve demo strategy path")
-        return False
-    if path.exists():
-        return False
-    save_strategy(_DEFAULT_DEMO_STRATEGY_ID, _DEFAULT_DEMO_STRATEGY_CODE)
-    return True
+    """确保所有内置策略存在"""
+    success = True
+    for strategy_id, strategy_code in _BUILTIN_STRATEGIES.items():
+        try:
+            path = _strategy_path(strategy_id)
+        except Exception:
+            logging.getLogger(__name__).exception(f"failed to resolve {strategy_id} strategy path")
+            success = False
+            continue
+
+        if path.exists():
+            continue
+
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(strategy_code, encoding="utf-8")
+            _write_strategy_created_at(path, _now_utc_iso8601())
+        except Exception:
+            logging.getLogger(__name__).exception(f"failed to create {strategy_id} strategy")
+            success = False
+
+    return success
 
 
 def load_strategy(strategy_id: str) -> str:
+    # 优先返回内置策略
+    if strategy_id in _BUILTIN_STRATEGIES:
+        return _BUILTIN_STRATEGIES[strategy_id]
+
     path = _strategy_path(strategy_id)
     if not path.exists():
         raise FileNotFoundError(f"strategy {path.stem} not found")
@@ -734,6 +817,10 @@ def delete_job(job_id: str) -> bool:
 
 
 def delete_strategy(strategy_id: str) -> None:
+    # 保护内置策略不被删除
+    if strategy_id in _BUILTIN_STRATEGY_IDS:
+        raise ValueError(f"Cannot delete built-in strategy: {strategy_id}")
+
     path = _strategy_path(strategy_id)
     if not path.exists():
         raise FileNotFoundError(f"strategy {path.stem} not found")
@@ -752,6 +839,10 @@ def delete_strategy_cascade(
     updated_by: str | None = None,
 ) -> tuple[str, int]:
     normalized_strategy_id = _validate_strategy_id(strategy_id)
+
+    # 保护内置策略不被删除
+    if normalized_strategy_id in _BUILTIN_STRATEGY_IDS:
+        raise ValueError(f"Cannot delete built-in strategy: {normalized_strategy_id}")
 
     with _RENAME_LOCK, _rename_db_transaction() as conn:
         raw_map = _fetch_rename_map(conn)

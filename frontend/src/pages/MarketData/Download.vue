@@ -3,10 +3,10 @@
     <div class="actions-grid">
       <div class="action-panel">
         <div class="panel-header">
-          <h3>全量下载</h3>
+          <h3>手动下载</h3>
         </div>
         <div class="panel-body">
-          <p class="panel-desc">下载完整数据包并解压，适用于首次安装或数据重建</p>
+          <p class="panel-desc">行情数据将默认每个月1号凌晨4点下载，如有需要可手动触发下载</p>
           <button @click="triggerFull" :disabled="hasRunningTask" class="btn btn-primary">
             {{ hasRunningTask ? '下载中...' : '开始全量下载' }}
           </button>
@@ -152,7 +152,7 @@ export default {
 
       // Show result notification
       if (task.status === 'success') {
-        alert('✓ 任务执行成功！');
+        alert('下载完成');
       } else if (task.status === 'failed') {
         alert('✗ 任务执行失败：' + (task.error || '未知错误'));
       }

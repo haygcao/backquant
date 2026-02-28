@@ -6,7 +6,7 @@
     </div>
     <div class="panel-body">
       <div v-if="task.status" class="progress-info">
-        <span class="info-label">阶段:</span>
+        <span class="info-label">阶段（总共两个阶段）:</span>
         <span class="info-value">{{ stageLabel }}</span>
         <span class="info-label">进度:</span>
         <span class="info-value">{{ task.progress }}%</span>

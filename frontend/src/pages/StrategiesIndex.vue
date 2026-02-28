@@ -396,7 +396,7 @@ export default {
       if (!strategyId) {
         return false;
       }
-      if (strategyId === 'demo') {
+      if (strategyId === 'demo' || strategyId === 'golden_cross_demo') {
         return false;
       }
       if (target.read_only) {
@@ -418,6 +418,9 @@ export default {
       }
       if (strategyId === 'demo') {
         return 'demo 为内置示例策略，不支持删除';
+      }
+      if (strategyId === 'golden_cross_demo') {
+        return 'golden_cross_demo 为内置示例策略，不支持删除';
       }
       if (target.read_only) {
         return '只读策略不支持删除';
@@ -632,11 +635,23 @@ def after_trading(context):
         // 这里优先走后端列表接口；若后端未来支持分页，可在 params 中透传 page/page_size。
         const data = await listStrategies();
         const list = this.normalizeCanonicalStrategyRows(normalizeStrategyList(data), renameMap);
-        // 按更新时间倒序排列，最新的在前面
+        // 自定义排序：demo 第一，golden_cross_demo 第二，其余按更新时间倒序
         const sorted = [...list].sort((a, b) => {
+          const idA = String(a.id || '').trim();
+          const idB = String(b.id || '').trim();
+
+          // demo 始终排第一
+          if (idA === 'demo') return -1;
+          if (idB === 'demo') return 1;
+
+          // golden_cross_demo 排第二
+          if (idA === 'golden_cross_demo') return -1;
+          if (idB === 'golden_cross_demo') return 1;
+
+          // 其余按更新时间倒序
           const tsA = getStrategyMetaTimestamp(a);
           const tsB = getStrategyMetaTimestamp(b);
-          return tsB - tsA; // 倒序
+          return tsB - tsA;
         });
         this.rows = sorted;
         mergeLocalStrategyIds(sorted.map((item) => item.id));

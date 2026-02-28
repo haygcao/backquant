@@ -53,7 +53,10 @@
             </div>
           </div>
           <div class="card-body">
-            <PythonCodeEditor v-model="code" :min-height="560" />
+            <PythonCodeEditor v-if="!loading || code" v-model="code" :min-height="560" />
+            <div v-else class="loading-placeholder">
+              <p>加载策略代码中...</p>
+            </div>
           </div>
         </div>
       </div>
@@ -158,17 +161,38 @@ import {
 const DEFAULT_TEMPLATE = `# RQAlpha 默认策略示例
 from rqalpha.api import *
 
+# 在这个方法中编写任何的初始化逻辑。context对象将会在你的算法策略的任何方法之间做传递。
 def init(context):
-    # 选择一个股票（平安银行）
+    logger.info("init")
     context.s1 = "000001.XSHE"
+    update_universe(context.s1)
+    # 是否已发送了order
+    context.fired = False
+    context.cnt = 1
 
+
+def before_trading(context):
+    logger.info("Before Trading", context.cnt)
+    context.cnt += 1
+
+
+# 你选择的证券的数据更新将会触发此段逻辑，例如日或分钟历史数据切片或者是实时数据切片更新
 def handle_bar(context, bar_dict):
-    # 如果当前没有持仓
-    position = context.portfolio.positions[context.s1]
+    context.cnt += 1
+    logger.info("handle_bar", context.cnt)
+    # 开始编写你的主要的算法逻辑
 
-    if position.quantity == 0:
-        # 用全部资金买入
-        order_percent(context.s1, 1.0)
+    # bar_dict[order_book_id] 可以拿到某个证券的bar信息
+    # context.portfolio 可以拿到现在的投资组合状态信息
+
+    # 使用order_shares(id_or_ins, amount)方法进行落单
+
+    # TODO: 开始编写你的算法吧！
+    if not context.fired:
+        # order_percent并且传入1代表买入该股票并且使其占有投资组合的100%
+        order_percent(context.s1, 1)
+        context.fired = True
+
 `;
 function unwrapDataPayload(payload) {
   if (!payload || typeof payload !== 'object') {
@@ -261,7 +285,7 @@ export default {
   data() {
     return {
       strategyId: '',
-      code: DEFAULT_TEMPLATE,
+      code: '',
       loading: false,
       saving: false,
       compiling: false,
@@ -1047,6 +1071,15 @@ export default {
 .toast-leave-to {
   transform: translateY(-10px) scale(0.95);
   opacity: 0;
+}
+
+.loading-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 560px;
+  color: #666;
+  font-size: 14px;
 }
 
 @media (max-width: 980px) {

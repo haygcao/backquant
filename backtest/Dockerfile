@@ -7,7 +7,6 @@ WORKDIR /app
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        build-essential \
         ca-certificates \
         cron \
         curl \
@@ -15,7 +14,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+RUN pip install --upgrade pip \
+    && pip install --no-cache-dir -r /app/requirements.txt
 
 ENV RQALPHA_IMAGE_BUNDLE_PATH=/opt/rqalpha/bundle
 RUN mkdir -p /opt/rqalpha/bundle

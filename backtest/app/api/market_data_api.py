@@ -227,10 +227,19 @@ def get_cron_config():
         conn.close()
 
         if not row:
+            # Initialize with default values
+            conn = sqlite3.connect(str(db_path))
+            conn.execute("""
+                INSERT INTO market_data_cron_config
+                (id, enabled, cron_expression, task_type, updated_at)
+                VALUES (1, 1, '0 4 1 * *', 'full', ?)
+            """, (datetime.utcnow().isoformat(),))
+            conn.commit()
+            conn.close()
             return jsonify({
-                'enabled': False,
-                'cron_expression': '0 2 1 * *',
-                'task_type': 'incremental'
+                'enabled': True,
+                'cron_expression': '0 4 1 * *',
+                'task_type': 'full'
             }), 200
 
         return jsonify(dict(row)), 200

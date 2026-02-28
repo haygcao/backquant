@@ -10,10 +10,16 @@
     </div>
 
     <div v-else-if="!data.analyzed" class="empty-state">
-      <p>{{ data.message }}</p>
-      <button @click="triggerAnalyze" class="btn btn-primary" :disabled="analyzing">
-        {{ analyzing ? '分析中...' : '触发数据分析' }}
-      </button>
+      <div v-if="analyzing || currentTaskId" class="analyzing-message">
+        <div class="spinner"></div>
+        <p>行情数据分析中，请稍等...</p>
+      </div>
+      <div v-else>
+        <p>{{ data.message }}</p>
+        <button @click="triggerAnalyze" class="btn btn-primary">
+          触发数据分析
+        </button>
+      </div>
     </div>
 
     <div v-else class="content-layout">
@@ -39,7 +45,7 @@
               <div class="stat-value">{{ formatSize(data.data.total_size_bytes) }}</div>
             </div>
             <div class="stat-item">
-              <div class="stat-label">最近修改</div>
+              <div class="stat-label">数据更新时间</div>
               <div class="stat-value">{{ formatDate(data.data.last_modified) }}</div>
             </div>
           </div>
@@ -99,10 +105,10 @@
                 <table v-else class="files-table">
                   <thead>
                     <tr>
-                      <th style="width: 60px; text-align: center">#</th>
+                      <th style="width: 40px; text-align: center">#</th>
                       <th>文件名</th>
-                      <th style="width: 100px; text-align: right">大小</th>
-                      <th style="width: 160px; text-align: center">修改时间</th>
+                      <th style="width: 80px; text-align: right">大小</th>
+                      <th style="width: 120px; text-align: center">数据更新时间</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -140,7 +146,8 @@ export default {
       data: {},
       files: [],
       analyzing: false,
-      currentTaskId: null
+      currentTaskId: null,
+      autoTriggered: false
     };
   },
   mounted() {
@@ -192,6 +199,10 @@ export default {
             this.$nextTick(() => {
               this.renderChart();
             });
+          } else if (!this.autoTriggered) {
+            // 首次加载且没有数据时，自动触发数据分析
+            this.autoTriggered = true;
+            this.triggerAnalyze();
           }
         } else {
           this.error = '加载数据失败';
@@ -316,7 +327,15 @@ export default {
     },
     formatDate(dateStr) {
       if (!dateStr) return '-';
-      return new Date(dateStr).toLocaleString('zh-CN');
+      // 后端存储的是 UTC 时间，添加 Z 后缀让浏览器自动转换为本地时间
+      const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
     },
     formatSize(bytes) {
       if (!bytes) return '-';
@@ -327,7 +346,9 @@ export default {
         size /= 1024;
         unitIndex++;
       }
-      return `${size.toFixed(2)} ${units[unitIndex]}`;
+      // 如果数字大于等于10，不显示小数
+      const decimals = size >= 10 ? 0 : 2;
+      return `${size.toFixed(decimals)}${units[unitIndex]}`;
     },
     formatNumber(num) {
       if (!num) return '0';
@@ -335,14 +356,14 @@ export default {
     },
     formatFileDate(dateStr) {
       if (!dateStr) return '-';
-      const date = new Date(dateStr);
-      const year = date.getFullYear();
+      // 后端存储的是 UTC 时间，添加 Z 后缀让浏览器自动转换为本地时间
+      const date = new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
       const month = String(date.getMonth() + 1).padStart(2, '0');
       const day = String(date.getDate()).padStart(2, '0');
       const hours = String(date.getHours()).padStart(2, '0');
       const minutes = String(date.getMinutes()).padStart(2, '0');
       const seconds = String(date.getSeconds()).padStart(2, '0');
-      return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+      return `${month}/${day} ${hours}:${minutes}:${seconds}`;
     }
   }
 };
@@ -360,6 +381,35 @@ export default {
 .empty-state {
   padding: 40px;
   text-align: center;
+}
+
+.analyzing-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.analyzing-message p {
+  margin: 0;
+  color: #1976d2;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(25, 118, 210, 0.2);
+  border-top-color: #1976d2;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .loading-state p,
@@ -474,9 +524,9 @@ export default {
 }
 
 .files-list-wrapper {
-  flex: 1 1 350px;
-  min-width: 350px;
-  max-width: 500px;
+  flex: 1 1 450px;
+  min-width: 450px;
+  max-width: 650px;
   padding: 16px;
   background: #fafafa;
   border: 1px solid #e0e0e0;
@@ -486,6 +536,7 @@ export default {
 .files-table-container {
   max-height: 350px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .empty-files {
@@ -546,13 +597,15 @@ export default {
   text-align: right;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   color: #666;
+  white-space: nowrap;
 }
 
 .files-table .file-modified {
   text-align: center;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   color: #666;
-  font-size: 10px;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .data-table {

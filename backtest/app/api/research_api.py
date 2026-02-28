@@ -18,7 +18,7 @@ from app.auth import ExpiredSignatureError, InvalidTokenError, decode_auth_token
 bp_research = Blueprint("bp_research", __name__, url_prefix="/api/research")
 
 _ALLOWED_RESEARCH_STATUS = {"DRAFT", "ACTIVE", "ARCHIVED"}
-_ALLOWED_SESSION_STATUS = {"RUNNING", "STOPPED", "EXPIRED"}
+_ALLOWED_SESSION_STATUS = {"RUNNING", "STOPPED"}
 _DEFAULT_KERNEL = "python3"
 _DEFAULT_ITEM_STATUS = "DRAFT"
 _DEFAULT_NOTEBOOK_PLACEHOLDERS = {
@@ -344,10 +344,10 @@ def _save_sessions(sessions: dict[str, dict]) -> None:
 def _session_status_for_item(session: dict | None) -> tuple[str | None, bool]:
     if session is None:
         return None, False
-    if _is_expired(session):
-        session["status"] = "EXPIRED"
-        return "EXPIRED", True
-    return str(session.get("status") or "RUNNING"), False
+    status = str(session.get("status") or "RUNNING")
+    if status == "RUNNING":
+        return status, False
+    return status, False
 
 
 def _session_lock_for(research_id: str) -> threading.RLock:

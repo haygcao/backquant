@@ -95,6 +95,13 @@ export default {
           iconPath: 'M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4 M10 17l5-5-5-5 M15 12H3'
         },
         {
+          id: 'market-data',
+          label: '数据管理',
+          path: '/market-data',
+          requireAuth: true,
+          iconPath: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4'
+        },
+        {
           id: 'workbench',
           label: '回测工作台',
           path: '/strategies',
@@ -107,13 +114,6 @@ export default {
           path: '/research',
           requireAuth: true,
           iconPath: 'M6 8h.01 M12 8h.01 M18 8h.01 M4 16h16'
-        },
-        {
-          id: 'market-data',
-          label: '行情数据管理',
-          path: '/market-data',
-          requireAuth: true,
-          iconPath: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4'
         }
       ],
       sideNavItems: [
@@ -168,7 +168,7 @@ export default {
       return false;
     },
     goHome() {
-      this.$router.push(this.isAuthenticated ? '/strategies' : '/login');
+      this.$router.push(this.isAuthenticated ? '/market-data/overview' : '/login');
     },
     handleTopNavClick(item, event) {
       if (item.disabled) {

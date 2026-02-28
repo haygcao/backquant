@@ -151,25 +151,23 @@ def do_full_download(task_id: str):
                         # Phase 1: Downloading
                         if downloaded_bytes != last_downloaded:
                             percent = (downloaded_bytes / total_bytes) * 100
-                            progress = int(10 + percent * 0.5)  # Map to 10-60%
                             tm.update_progress(
-                                task_id, progress, 'download',
-                                f'{downloaded_bytes/(1024*1024):.1f}MB / {total_bytes/(1024*1024):.1f}MB'
+                                task_id, int(percent), '一、下载',
+                                f'{downloaded_bytes/(1024*1024):.1f}MB / {total_bytes/(1024*1024):.1f}MB ({percent:.1f}%)'
                             )
                             last_downloaded = downloaded_bytes
                     elif not download_complete:
                         # Download just completed
                         download_complete = True
-                        tm.update_progress(task_id, 60, 'extract', '下载完成，开始解压...')
+                        tm.update_progress(task_id, 100, '一、下载', f'{total_bytes/(1024*1024):.1f}MB / {total_bytes/(1024*1024):.1f}MB (100.0%)')
                         tm.log(task_id, 'INFO', '下载完成，开始解压')
+                        tm.update_progress(task_id, 90, '二、解压', '解压中: 0.0MB')
                     elif extracted_bytes > 0:
                         # Phase 2: Extracting
                         if extracted_bytes != last_extracted:
-                            extract_percent = min((extracted_bytes / total_bytes) * 100, 99.9)
-                            progress = int(60 + extract_percent * 0.2)  # Map to 60-80%
                             tm.update_progress(
-                                task_id, progress, 'extract',
-                                f'{extracted_bytes/(1024*1024):.1f}MB'
+                                task_id, 90, '二、解压',
+                                f'解压中: {extracted_bytes/(1024*1024):.1f}MB'
                             )
                             last_extracted = extracted_bytes
 
@@ -180,7 +178,7 @@ def do_full_download(task_id: str):
 
     try:
         # Get bundle info first
-        tm.update_progress(task_id, 0, 'prepare', '准备下载环境...')
+        tm.update_progress(task_id, 0, '准备', '准备下载环境...')
         _get_bundle_info()
 
         # Use temporary directory for download
@@ -192,7 +190,7 @@ def do_full_download(task_id: str):
         monitor_thread.start()
 
         # Download to temporary directory
-        tm.update_progress(task_id, 5, 'download', '开始下载数据包...')
+        tm.update_progress(task_id, 0, '一、下载', '开始下载数据包...')
         tm.log(task_id, 'INFO', '使用 rqalpha download-bundle 命令下载')
 
         cmd = ['rqalpha', 'download-bundle', '-d', temp_dir]
@@ -222,7 +220,6 @@ def do_full_download(task_id: str):
             raise RuntimeError(f'rqalpha download-bundle 失败，退出码: {process.returncode}')
 
         # Copy from temp directory to target bundle path
-        tm.update_progress(task_id, 80, 'copy', '正在复制数据到目标目录...')
         temp_bundle = Path(temp_dir) / 'bundle'
 
         if not temp_bundle.exists():
@@ -230,6 +227,7 @@ def do_full_download(task_id: str):
 
         # Calculate total size to copy
         total_copy_size = _dir_size_bytes(temp_bundle)
+        tm.update_progress(task_id, 100, '二、解压', f'解压完成: {total_copy_size/(1024*1024):.1f}MB')
         tm.log(task_id, 'INFO', f'准备复制 {total_copy_size/(1024*1024):.1f}MB 数据')
 
         # Clear target directory contents
@@ -252,7 +250,7 @@ def do_full_download(task_id: str):
             else:
                 shutil.copy2(item, dest)
 
-        tm.update_progress(task_id, 95, 'complete', '下载完成，准备分析数据...')
+        tm.update_progress(task_id, 100, '完成', '下载完成，准备分析数据...')
         tm.log(task_id, 'INFO', '数据包下载完成')
 
         # Auto-trigger analysis

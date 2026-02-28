@@ -5,6 +5,9 @@
         <h3>定时任务配置</h3>
       </div>
       <div class="panel-body">
+        <div class="info-banner">
+          <p>配置行情下载任务，每月1号执行，数据来自于RQAlpha</p>
+        </div>
         <div v-if="configLoading" class="loading-state">加载配置中...</div>
         <div v-else>
           <div class="form-section">
@@ -21,17 +24,14 @@
                 <input
                   v-model="config.cron_expression"
                   type="text"
-                  placeholder="0 2 1 * *"
+                  placeholder="0 4 1 * *"
                   class="text-input"
                 />
-                <span class="hint-text">示例: 0 2 1 * * (每月1日凌晨2点)</span>
+                <span class="hint-text">示例: 0 4 1 * * (每月1日凌晨4点)</span>
               </div>
               <div class="form-field">
                 <label class="field-label">任务类型</label>
-                <select v-model="config.task_type" class="select-input">
-                  <option value="incremental">增量更新</option>
-                  <option value="full">全量下载</option>
-                </select>
+                <div class="text-display">全量下载</div>
               </div>
             </div>
           </div>
@@ -90,9 +90,9 @@ export default {
   data() {
     return {
       config: {
-        enabled: false,
-        cron_expression: '0 2 1 * *',
-        task_type: 'incremental'
+        enabled: true,
+        cron_expression: '0 4 1 * *',
+        task_type: 'full'
       },
       configLoading: true,
       saving: false,
@@ -176,7 +176,7 @@ export default {
     },
     formatDate(dateStr) {
       if (!dateStr) return '-';
-      return new Date(dateStr).toLocaleString('zh-CN');
+      return new Date(dateStr).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
     }
   }
 };
@@ -214,6 +214,21 @@ export default {
 
 .panel-body {
   padding: 16px;
+}
+
+.info-banner {
+  background: #e3f2fd;
+  border: 1px solid #90caf9;
+  border-radius: 4px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.info-banner p {
+  margin: 0;
+  font-size: 12px;
+  color: #1565c0;
+  line-height: 1.5;
 }
 
 .form-section {
@@ -285,6 +300,16 @@ export default {
 .hint-text {
   font-size: 11px;
   color: #999;
+}
+
+.text-display {
+  padding: 6px 8px;
+  font-size: 12px;
+  color: #666;
+  background: #f5f5f5;
+  border: 1px solid #e0e0e0;
+  border-radius: 2px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 .form-actions {

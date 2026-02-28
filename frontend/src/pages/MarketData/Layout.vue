@@ -3,12 +3,13 @@
     <div class="page-container">
       <div class="page-header">
         <div class="title-section">
-          <h2>行情数据管理</h2>
+          <h2>数据管理</h2>
         </div>
         <div class="nav-section">
           <router-link to="/market-data/overview" class="nav-tab">数据全景</router-link>
-          <router-link to="/market-data/download" class="nav-tab">手动下载</router-link>
           <router-link to="/market-data/config" class="nav-tab">下载配置</router-link>
+          <router-link to="/market-data/download" class="nav-tab">手动下载</router-link>
+          <router-link to="/market-data/packages" class="nav-tab">Python包管理</router-link>
         </div>
       </div>
 

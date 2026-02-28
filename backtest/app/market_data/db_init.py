@@ -124,5 +124,19 @@ def init_database(db_path: Path):
         ON market_data_files(file_name)
     """)
 
+    # 7. Python packages table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS python_packages (
+            package_name TEXT PRIMARY KEY,
+            version TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+    """)
+
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_packages_updated
+        ON python_packages(updated_at DESC)
+    """)
+
     conn.commit()
     conn.close()

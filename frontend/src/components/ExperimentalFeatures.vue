@@ -151,7 +151,7 @@ export default {
     redirectIfAuthenticated() {
       this.isAuthenticated = isAuthenticated();
       if (this.isAuthenticated) {
-        this.$router.replace({ name: 'strategies' });
+        this.$router.replace({ name: 'market-data-overview' });
       }
     },
     checkSavedPassword() {
@@ -252,7 +252,7 @@ export default {
             await this.performLogin();
           } else if (this.pendingRouteAfterBundle) {
             this.pendingRouteAfterBundle = false;
-            await this.$router.replace({ name: 'strategies' });
+            await this.$router.replace({ name: 'market-data-overview' });
           }
         }
       } catch (err) {
@@ -318,7 +318,7 @@ export default {
 
         const payload = await this.getBundleStatus();
         if (this.isBundleReady(payload)) {
-          await this.$router.replace({ name: 'strategies' });
+          await this.$router.replace({ name: 'market-data-overview' });
         } else {
           this.pendingRouteAfterBundle = true;
           this.openBundleModal();

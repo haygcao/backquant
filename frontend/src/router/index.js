@@ -48,6 +48,10 @@ const MarketDataConfig = () => import(
   /* webpackChunkName: "route-market-data" */
   '@/pages/MarketData/Config.vue'
 );
+const MarketDataPackages = () => import(
+  /* webpackChunkName: "route-market-data" */
+  '@/pages/MarketData/Packages.vue'
+);
 
 const routes = [
     { path: '/', redirect: '/login' },
@@ -66,7 +70,8 @@ const routes = [
         { path: '', redirect: { name: 'market-data-overview' } },
         { path: 'overview', component: MarketDataOverview, name: 'market-data-overview' },
         { path: 'download', component: MarketDataDownload, name: 'market-data-download' },
-        { path: 'config', component: MarketDataConfig, name: 'market-data-config' }
+        { path: 'config', component: MarketDataConfig, name: 'market-data-config' },
+        { path: 'packages', component: MarketDataPackages, name: 'market-data-packages' }
       ]
     },
 
@@ -89,7 +94,7 @@ router.beforeEach((to, from, next) => {
     if (!token && to.name !== 'login') {
         next({ name: 'login' });
     } else if (token && to.name === 'login') {
-        next({ name: 'strategies' });
+        next({ name: 'market-data-overview' });
     } else {
         next();
     }
