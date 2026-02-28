@@ -70,22 +70,24 @@
           <table class="table">
             <thead>
               <tr>
-                <th style="width: 20%">触发时间</th>
-                <th style="width: 10%">状态</th>
-                <th style="width: 30%">任务ID</th>
-                <th style="width: 40%">消息</th>
+                <th style="width: 18%">时间</th>
+                <th style="width: 8%">级别</th>
+                <th style="width: 10%">任务类型</th>
+                <th style="width: 8%">来源</th>
+                <th style="width: 56%">消息</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="log in logs" :key="log.log_id">
-                <td class="mono">{{ formatDate(log.trigger_time) }}</td>
+                <td class="mono">{{ formatDate(log.timestamp) }}</td>
                 <td>
-                  <span :class="'status-tag status-' + log.status">
-                    {{ log.status }}
+                  <span :class="'level-tag level-' + log.level.toLowerCase()">
+                    {{ log.level }}
                   </span>
                 </td>
-                <td class="mono">{{ log.task_id || '-' }}</td>
-                <td>{{ log.message }}</td>
+                <td>{{ formatTaskType(log.task_type) }}</td>
+                <td>{{ formatSource(log.source) }}</td>
+                <td class="log-message">{{ log.message }}</td>
               </tr>
             </tbody>
           </table>
@@ -284,7 +286,7 @@ export default {
       this.logsLoading = true;
 
       try {
-        const response = await fetch('/api/market-data/cron/logs?limit=20', {
+        const response = await fetch('/api/market-data/logs?limit=100', {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
@@ -299,6 +301,22 @@ export default {
       } finally {
         this.logsLoading = false;
       }
+    },
+    formatTaskType(taskType) {
+      const types = {
+        full: '全量下载',
+        incremental: '增量更新',
+        analyze: '数据分析'
+      };
+      return types[taskType] || taskType || '-';
+    },
+    formatSource(source) {
+      const sources = {
+        manual: '手动',
+        auto: '自动',
+        cron: '定时'
+      };
+      return sources[source] || source || '-';
     },
     formatDate(dateStr) {
       if (!dateStr) return '-';
@@ -481,7 +499,7 @@ export default {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
-.status-tag {
+.level-tag {
   display: inline-block;
   padding: 2px 6px;
   font-size: 11px;
@@ -490,22 +508,27 @@ export default {
   border-radius: 2px;
 }
 
-.status-success {
-  background: #e8f5e9;
-  color: #2e7d32;
-  border-color: #4caf50;
+.level-info {
+  background: #e3f2fd;
+  color: #1976d2;
+  border-color: #1976d2;
 }
 
-.status-failed {
+.level-warning {
+  background: #fff3e0;
+  color: #e65100;
+  border-color: #ff9800;
+}
+
+.level-error {
   background: #ffebee;
   color: #c62828;
   border-color: #ef5350;
 }
 
-.status-skipped {
-  background: #fff3e0;
-  color: #e65100;
-  border-color: #ff9800;
+.log-message {
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .btn {

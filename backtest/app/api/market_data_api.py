@@ -292,6 +292,53 @@ def update_cron_config():
         return jsonify({'error': str(e)}), 500
 
 
+@bp_market_data.route('/logs', methods=['GET'])
+@auth_required
+def get_all_logs():
+    """Get all task logs (including manual and cron tasks)."""
+    db_path = _get_db_path()
+    limit = request.args.get('limit', 50, type=int)
+    offset = request.args.get('offset', 0, type=int)
+
+    try:
+        conn = sqlite3.connect(str(db_path))
+        conn.row_factory = sqlite3.Row
+
+        # Get task logs with task info
+        cursor = conn.execute("""
+            SELECT
+                tl.log_id,
+                tl.task_id,
+                tl.timestamp,
+                tl.level,
+                tl.message,
+                t.task_type,
+                t.status as task_status,
+                t.source
+            FROM market_data_task_logs tl
+            LEFT JOIN market_data_tasks t ON tl.task_id = t.task_id
+            ORDER BY tl.timestamp DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset))
+
+        logs = [dict(row) for row in cursor.fetchall()]
+
+        cursor = conn.execute("SELECT COUNT(*) FROM market_data_task_logs")
+        total = cursor.fetchone()[0]
+
+        conn.close()
+
+        return jsonify({
+            'logs': logs,
+            'total': total,
+            'limit': limit,
+            'offset': offset
+        }), 200
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @bp_market_data.route('/cron/logs', methods=['GET'])
 @auth_required
 def get_cron_logs():
