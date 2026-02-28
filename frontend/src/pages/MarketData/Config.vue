@@ -3,11 +3,9 @@
     <div class="config-panel">
       <div class="panel-header">
         <h3>定时任务配置</h3>
+        <span class="header-hint">定时任务每月1号执行，数据来自于RQAlpha</span>
       </div>
       <div class="panel-body">
-        <div class="info-banner">
-          <p>配置行情下载任务，每月1号执行，数据来自于RQAlpha</p>
-        </div>
         <div v-if="configLoading" class="loading-state">加载配置中...</div>
         <div v-else>
           <div class="form-section">
@@ -48,11 +46,9 @@
     <div class="download-panel">
       <div class="panel-header">
         <h3>手动下载</h3>
+        <span class="header-hint">如有需要可手动触发下载</span>
       </div>
       <div class="panel-body">
-        <div class="info-banner">
-          <p><strong>行情数据将默认每个月1号凌晨4点下载，如有需要可手动触发下载</strong></p>
-        </div>
         <button @click="triggerFull" :disabled="hasRunningTask" class="btn btn-primary">
           {{ hasRunningTask ? '下载中...' : '开始全量下载' }}
         </button>
@@ -330,23 +326,14 @@ export default {
   color: #000;
 }
 
+.header-hint {
+  font-size: 12px;
+  color: #666;
+  font-weight: 400;
+}
+
 .panel-body {
   padding: 16px;
-}
-
-.info-banner {
-  background: #e3f2fd;
-  border: 1px solid #90caf9;
-  border-radius: 4px;
-  padding: 12px 16px;
-  margin-bottom: 16px;
-}
-
-.info-banner p {
-  margin: 0;
-  font-size: 12px;
-  color: #1565c0;
-  line-height: 1.5;
 }
 
 .form-section {
