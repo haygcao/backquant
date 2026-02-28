@@ -202,7 +202,7 @@ export default {
           } else if (!this.autoTriggered) {
             // 首次加载且没有数据时，自动触发数据分析
             this.autoTriggered = true;
-            this.triggerAnalyze();
+            this.triggerAnalyze(true);
           }
         } else {
           this.error = '加载数据失败';
@@ -213,15 +213,19 @@ export default {
         this.loading = false;
       }
     },
-    async triggerAnalyze() {
+    async triggerAnalyze(isAuto = false) {
       this.analyzing = true;
 
       try {
         const response = await fetch('/api/market-data/analyze', {
           method: 'POST',
           headers: {
+            'Content-Type': 'application/json',
             'Authorization': `Bearer ${localStorage.getItem('token')}`
-          }
+          },
+          body: JSON.stringify({
+            source: isAuto ? 'auto' : 'manual'
+          })
         });
 
         if (response.ok) {

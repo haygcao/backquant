@@ -73,11 +73,16 @@ def trigger_analyze():
         bundle_path = _get_bundle_path()
         db_path = _get_db_path()
 
+        # Get source from request body, default to 'manual'
+        source = 'manual'
+        if request.json:
+            source = request.json.get('source', 'manual')
+
         task_id = tm.submit_task(
             'analyze',
             analyze_bundle,
             task_args=(bundle_path, db_path),
-            source='manual'
+            source=source
         )
 
         return jsonify({'task_id': task_id}), 202

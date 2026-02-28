@@ -16,14 +16,13 @@ def analyze_bundle(task_id: str, bundle_path: Path, db_path: Path):
     from app.market_data.task_manager import get_task_manager
 
     tm = get_task_manager()
+    tm.log(task_id, 'INFO', '开始数据分析任务')
     tm.update_progress(task_id, 0, 'analyze', '开始分析...')
-    tm.log(task_id, 'INFO', f'Bundle 路径: {bundle_path}')
 
     try:
         # 1. Scan files
         tm.update_progress(task_id, 10, 'analyze', '正在扫描文件...')
         file_stats = _scan_files(bundle_path)
-        tm.log(task_id, 'INFO', f'扫描到 {file_stats["total_files"]} 个文件')
 
         # 2. Parse bundle data
         tm.update_progress(task_id, 30, 'analyze', '正在解析行情数据...')
@@ -34,7 +33,7 @@ def analyze_bundle(task_id: str, bundle_path: Path, db_path: Path):
         _save_stats(db_path, bundle_path, file_stats, data_counts)
 
         tm.update_progress(task_id, 100, 'analyze', '分析完成')
-        tm.log(task_id, 'INFO', '数据分析完成')
+        tm.log(task_id, 'INFO', '数据分析任务完成')
 
     except Exception as e:
         tm.log(task_id, 'ERROR', f'分析失败: {str(e)}')
@@ -101,7 +100,6 @@ def _parse_bundle_data(bundle_path: Path, tm, task_id: str) -> Dict:
         try:
             import h5py
         except ImportError:
-            tm.log(task_id, 'WARNING', 'h5py not available, skipping data parsing')
             return counts
 
         # Stock data
@@ -110,11 +108,9 @@ def _parse_bundle_data(bundle_path: Path, tm, task_id: str) -> Dict:
         if stock_file.exists():
             try:
                 with h5py.File(str(stock_file), 'r') as f:
-                    # Count number of datasets/groups in the file
                     counts['stock_count'] = len(list(f.keys()))
-                tm.log(task_id, 'INFO', f'股票数据: {counts["stock_count"]} 条')
-            except Exception as e:
-                tm.log(task_id, 'WARNING', f'解析股票数据失败: {str(e)}')
+            except Exception:
+                pass
 
         # Fund data
         tm.update_progress(task_id, 50, 'analyze', '正在解析基金数据...')
@@ -123,9 +119,8 @@ def _parse_bundle_data(bundle_path: Path, tm, task_id: str) -> Dict:
             try:
                 with h5py.File(str(fund_file), 'r') as f:
                     counts['fund_count'] = len(list(f.keys()))
-                tm.log(task_id, 'INFO', f'基金数据: {counts["fund_count"]} 条')
-            except Exception as e:
-                tm.log(task_id, 'WARNING', f'解析基金数据失败: {str(e)}')
+            except Exception:
+                pass
 
         # Futures data
         tm.update_progress(task_id, 60, 'analyze', '正在解析期货数据...')
@@ -134,9 +129,8 @@ def _parse_bundle_data(bundle_path: Path, tm, task_id: str) -> Dict:
             try:
                 with h5py.File(str(futures_file), 'r') as f:
                     counts['futures_count'] = len(list(f.keys()))
-                tm.log(task_id, 'INFO', f'期货数据: {counts["futures_count"]} 条')
-            except Exception as e:
-                tm.log(task_id, 'WARNING', f'解析期货数据失败: {str(e)}')
+            except Exception:
+                pass
 
         # Index data
         tm.update_progress(task_id, 70, 'analyze', '正在解析指数数据...')
@@ -145,9 +139,8 @@ def _parse_bundle_data(bundle_path: Path, tm, task_id: str) -> Dict:
             try:
                 with h5py.File(str(index_file), 'r') as f:
                     counts['index_count'] = len(list(f.keys()))
-                tm.log(task_id, 'INFO', f'指数数据: {counts["index_count"]} 条')
-            except Exception as e:
-                tm.log(task_id, 'WARNING', f'解析指数数据失败: {str(e)}')
+            except Exception:
+                pass
 
         # Bond data (if exists)
         tm.update_progress(task_id, 80, 'analyze', '正在解析债券数据...')
@@ -156,12 +149,11 @@ def _parse_bundle_data(bundle_path: Path, tm, task_id: str) -> Dict:
             try:
                 with h5py.File(str(bond_file), 'r') as f:
                     counts['bond_count'] = len(list(f.keys()))
-                tm.log(task_id, 'INFO', f'债券数据: {counts["bond_count"]} 条')
-            except Exception as e:
-                tm.log(task_id, 'WARNING', f'解析债券数据失败: {str(e)}')
+            except Exception:
+                pass
 
-    except Exception as e:
-        tm.log(task_id, 'WARNING', f'解析部分数据失败: {str(e)}')
+    except Exception:
+        pass
 
     return counts
 
