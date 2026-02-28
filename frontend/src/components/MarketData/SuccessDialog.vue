@@ -1,15 +1,14 @@
 <template>
-  <div class="confirm-overlay" @click.self="$emit('cancel')">
-    <div class="confirm-modal">
+  <div class="dialog-overlay" @click.self="$emit('close')">
+    <div class="dialog-modal">
       <div class="modal-header">
-        <h3>确认操作</h3>
+        <h3>{{ title }}</h3>
       </div>
       <div class="modal-body">
         <p>{{ message }}</p>
       </div>
       <div class="modal-footer">
-        <button @click="$emit('cancel')" class="btn btn-secondary">取消</button>
-        <button @click="$emit('confirm')" class="btn btn-primary">确定</button>
+        <button @click="$emit('close')" class="btn btn-primary">确定</button>
       </div>
     </div>
   </div>
@@ -17,8 +16,12 @@
 
 <script>
 export default {
-  name: 'ConfirmDialog',
+  name: 'SuccessDialog',
   props: {
+    title: {
+      type: String,
+      default: '提示'
+    },
     message: {
       type: String,
       required: true
@@ -28,7 +31,7 @@ export default {
 </script>
 
 <style scoped>
-.confirm-overlay {
+.dialog-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -41,7 +44,7 @@ export default {
   z-index: 1000;
 }
 
-.confirm-modal {
+.dialog-modal {
   background: #fff;
   border: 1px solid #e0e0e0;
   border-radius: 0;
@@ -109,9 +112,5 @@ export default {
 .btn-primary:hover {
   background: #1565c0;
   border-color: #1565c0;
-}
-
-.btn-secondary {
-  background: #fff;
 }
 </style>

@@ -1,20 +1,22 @@
 <template>
-  <div class="task-progress-panel">
-    <div class="panel-header">
-      <h3>任务进度</h3>
-      <span :class="'status-tag status-' + task.status">{{ statusLabel }}</span>
-    </div>
-    <div class="panel-body">
-      <div v-if="task.status" class="progress-info">
-        <span class="info-label">阶段（总共两个阶段）:</span>
-        <span class="info-value">{{ stageLabel }}</span>
-        <span class="info-label">进度:</span>
-        <span class="info-value">{{ task.progress }}%</span>
+  <div class="progress-overlay">
+    <div class="progress-modal">
+      <div class="modal-header">
+        <h3>任务进度</h3>
+        <span :class="'status-tag status-' + task.status">{{ statusLabel }}</span>
       </div>
-      <div class="progress-bar-wrapper">
-        <div class="progress-bar-fill" :style="{ width: task.progress + '%' }"></div>
+      <div class="modal-body">
+        <div v-if="task.status" class="progress-info">
+          <span class="info-label">阶段（总共两个阶段）:</span>
+          <span class="info-value">{{ stageLabel }}</span>
+          <span class="info-label">进度:</span>
+          <span class="info-value">{{ task.progress }}%</span>
+        </div>
+        <div class="progress-bar-wrapper">
+          <div class="progress-bar-fill" :style="{ width: task.progress + '%' }"></div>
+        </div>
+        <p class="progress-message">{{ task.message }}</p>
       </div>
-      <p class="progress-message">{{ task.message }}</p>
     </div>
   </div>
 </template>
@@ -101,14 +103,29 @@ export default {
 </script>
 
 <style scoped>
-.task-progress-panel {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  margin-top: 16px;
+.progress-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
 }
 
-.panel-header {
+.progress-modal {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 0;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -117,11 +134,15 @@ export default {
   background: #fafafa;
 }
 
-.panel-header h3 {
+.modal-header h3 {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
   color: #000;
+}
+
+.modal-body {
+  padding: 16px;
 }
 
 .status-tag {
@@ -153,9 +174,6 @@ export default {
   border-color: #ef5350;
 }
 
-.panel-body {
-  padding: 16px;
-}
 
 .progress-info {
   display: grid;

@@ -57,7 +57,9 @@ class TaskManager:
                     task_args: tuple = (), source: str = 'manual') -> str:
         """Submit a task for execution."""
         with self.lock:
-            if self._has_running_task():
+            # Allow auto tasks to be submitted even when there's a running task
+            # This is needed for chained tasks (e.g., download -> analyze)
+            if source != 'auto' and self._has_running_task():
                 raise RuntimeError("已有任务正在运行，请等待完成后再试")
 
             task_id = str(uuid.uuid4())

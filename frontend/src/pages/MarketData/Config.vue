@@ -10,7 +10,7 @@
         <div v-else>
           <div class="form-section">
             <label class="checkbox-label">
-              <input type="checkbox" v-model="config.enabled" class="checkbox" />
+              <input type="checkbox" v-model="config.enabled" class="checkbox" :disabled="hasRunningTask" />
               <span>启用定时任务</span>
             </label>
           </div>
@@ -24,6 +24,7 @@
                   type="text"
                   placeholder="0 4 1 * *"
                   class="text-input"
+                  :disabled="hasRunningTask"
                 />
                 <span class="hint-text">示例: 0 4 1 * * (每月1日凌晨4点)</span>
               </div>
@@ -35,7 +36,7 @@
           </div>
 
           <div class="form-actions">
-            <button @click="saveConfig" class="btn btn-primary" :disabled="saving">
+            <button @click="saveConfig" class="btn btn-primary" :disabled="saving || hasRunningTask">
               {{ saving ? '保存中...' : '保存配置' }}
             </button>
           </div>
@@ -99,6 +100,12 @@
       @cancel="showConfirm = false"
     />
 
+    <SuccessDialog
+      v-if="showSuccess"
+      :message="successMessage"
+      @close="showSuccess = false"
+    />
+
     <TaskProgress v-if="currentTaskId" :task-id="currentTaskId" @task-complete="handleTaskComplete" />
   </div>
 </template>
@@ -106,12 +113,14 @@
 <script>
 import TaskProgress from '@/components/MarketData/TaskProgress.vue';
 import ConfirmDialog from '@/components/MarketData/ConfirmDialog.vue';
+import SuccessDialog from '@/components/MarketData/SuccessDialog.vue';
 
 export default {
   name: 'MarketDataConfig',
   components: {
     TaskProgress,
-    ConfirmDialog
+    ConfirmDialog,
+    SuccessDialog
   },
   data() {
     return {
@@ -128,7 +137,9 @@ export default {
       showConfirm: false,
       confirmMessage: '',
       confirmType: null,
-      hasRunningTask: false
+      hasRunningTask: false,
+      showSuccess: false,
+      successMessage: ''
     };
   },
   mounted() {
@@ -212,10 +223,12 @@ export default {
 
       // Show result notification
       if (task.status === 'success') {
-        alert('下载完成');
+        this.successMessage = '下载任务已完成';
+        this.showSuccess = true;
         this.loadLogs();
       } else if (task.status === 'failed') {
-        alert('✗ 任务执行失败：' + (task.error || '未知错误'));
+        this.successMessage = '任务执行失败：' + (task.error || '未知错误');
+        this.showSuccess = true;
       }
     },
     async loadConfig() {
