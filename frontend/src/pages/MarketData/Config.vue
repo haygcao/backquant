@@ -45,6 +45,20 @@
       </div>
     </div>
 
+    <div class="download-panel">
+      <div class="panel-header">
+        <h3>手动下载</h3>
+      </div>
+      <div class="panel-body">
+        <div class="info-banner">
+          <p><strong>行情数据将默认每个月1号凌晨4点下载，如有需要可手动触发下载</strong></p>
+        </div>
+        <button @click="triggerFull" :disabled="hasRunningTask" class="btn btn-primary">
+          {{ hasRunningTask ? '下载中...' : '开始全量下载' }}
+        </button>
+      </div>
+    </div>
+
     <div class="logs-panel">
       <div class="panel-header">
         <h3>运行日志</h3>
@@ -81,12 +95,28 @@
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      v-if="showConfirm"
+      :message="confirmMessage"
+      @confirm="handleConfirm"
+      @cancel="showConfirm = false"
+    />
+
+    <TaskProgress v-if="currentTaskId" :task-id="currentTaskId" @task-complete="handleTaskComplete" />
   </div>
 </template>
 
 <script>
+import TaskProgress from '@/components/MarketData/TaskProgress.vue';
+import ConfirmDialog from '@/components/MarketData/ConfirmDialog.vue';
+
 export default {
   name: 'MarketDataConfig',
+  components: {
+    TaskProgress,
+    ConfirmDialog
+  },
   data() {
     return {
       config: {
@@ -97,14 +127,101 @@ export default {
       configLoading: true,
       saving: false,
       logs: [],
-      logsLoading: false
+      logsLoading: false,
+      currentTaskId: null,
+      showConfirm: false,
+      confirmMessage: '',
+      confirmType: null,
+      hasRunningTask: false
     };
   },
   mounted() {
     this.loadConfig();
     this.loadLogs();
+    this.checkRunningTask();
   },
   methods: {
+    async checkRunningTask() {
+      try {
+        const response = await fetch('/api/market-data/tasks/running', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.task && ['pending', 'running'].includes(data.task.status)) {
+            this.currentTaskId = data.task.task_id;
+            this.hasRunningTask = true;
+          }
+        }
+      } catch (err) {
+        console.error('Failed to check running task:', err);
+      }
+    },
+    async triggerFull() {
+      try {
+        const response = await fetch('/api/market-data/download/full', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ force: false })
+        });
+
+        const data = await response.json();
+
+        if (data.need_confirm) {
+          this.confirmMessage = data.message;
+          this.confirmType = 'full';
+          this.showConfirm = true;
+        } else if (data.task_id) {
+          this.currentTaskId = data.task_id;
+          this.hasRunningTask = true;
+        } else if (response.status === 409) {
+          alert(data.error || '已有任务正在运行');
+        }
+      } catch (err) {
+        alert('网络错误，请重试');
+      }
+    },
+    async handleConfirm() {
+      this.showConfirm = false;
+      const endpoint = '/api/market-data/download/full';
+
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          body: JSON.stringify({ force: true })
+        });
+
+        const data = await response.json();
+        if (data.task_id) {
+          this.currentTaskId = data.task_id;
+          this.hasRunningTask = true;
+        }
+      } catch (err) {
+        alert('网络错误，请重试');
+      }
+    },
+    handleTaskComplete(task) {
+      this.currentTaskId = null;
+      this.hasRunningTask = false;
+
+      // Show result notification
+      if (task.status === 'success') {
+        alert('下载完成');
+        this.loadLogs();
+      } else if (task.status === 'failed') {
+        alert('✗ 任务执行失败：' + (task.error || '未知错误'));
+      }
+    },
     async loadConfig() {
       this.configLoading = true;
       try {
@@ -190,6 +307,7 @@ export default {
 }
 
 .config-panel,
+.download-panel,
 .logs-panel {
   background: #fff;
   border: 1px solid #e0e0e0;

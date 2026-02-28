@@ -40,10 +40,6 @@ const MarketDataOverview = () => import(
   /* webpackChunkName: "route-market-data" */
   '@/pages/MarketData/Overview.vue'
 );
-const MarketDataDownload = () => import(
-  /* webpackChunkName: "route-market-data" */
-  '@/pages/MarketData/Download.vue'
-);
 const MarketDataConfig = () => import(
   /* webpackChunkName: "route-market-data" */
   '@/pages/MarketData/Config.vue'
@@ -69,7 +65,6 @@ const routes = [
       children: [
         { path: '', redirect: { name: 'market-data-overview' } },
         { path: 'overview', component: MarketDataOverview, name: 'market-data-overview' },
-        { path: 'download', component: MarketDataDownload, name: 'market-data-download' },
         { path: 'config', component: MarketDataConfig, name: 'market-data-config' },
         { path: 'packages', component: MarketDataPackages, name: 'market-data-packages' }
       ]
