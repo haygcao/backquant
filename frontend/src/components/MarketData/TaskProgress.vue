@@ -7,8 +7,10 @@
       </div>
       <div class="modal-body">
         <div v-if="task.status" class="progress-info">
-          <span class="info-label">阶段（总共两个阶段）:</span>
-          <span class="info-value">{{ stageLabel }}</span>
+          <template v-if="isDownloadTask">
+            <span class="info-label">阶段（总共两个阶段）:</span>
+            <span class="info-value">{{ stageLabel }}</span>
+          </template>
           <span class="info-label">进度:</span>
           <span class="info-value">{{ task.progress }}%</span>
         </div>
@@ -36,12 +38,16 @@ export default {
         progress: 0,
         stage: '',
         status: '',
-        message: ''
+        message: '',
+        task_type: ''
       },
       pollInterval: null
     };
   },
   computed: {
+    isDownloadTask() {
+      return this.task.task_type === 'full' || this.task.task_type === 'incremental';
+    },
     stageLabel() {
       const stages = {
         download: '下载',
@@ -177,7 +183,7 @@ export default {
 
 .progress-info {
   display: grid;
-  grid-template-columns: auto 1fr auto 1fr;
+  grid-template-columns: auto 1fr;
   gap: 8px;
   margin-bottom: 12px;
   font-size: 12px;

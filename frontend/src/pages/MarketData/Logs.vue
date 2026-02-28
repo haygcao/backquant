@@ -1,0 +1,240 @@
+<template>
+  <div class="logs-container">
+    <div class="logs-panel">
+      <div class="panel-header">
+        <h3>运行日志</h3>
+        <button @click="loadLogs" class="btn btn-secondary btn-mini" :disabled="logsLoading">
+          {{ logsLoading ? '刷新中...' : '刷新' }}
+        </button>
+      </div>
+      <div class="panel-body">
+        <div v-if="logsLoading" class="loading-state">加载中...</div>
+        <div v-else-if="logs.length === 0" class="empty-state">暂无日志</div>
+        <div v-else class="table-scroll">
+          <table class="table">
+            <thead>
+              <tr>
+                <th style="width: 18%">时间</th>
+                <th style="width: 8%">级别</th>
+                <th style="width: 12%">任务类型</th>
+                <th style="width: 8%">来源</th>
+                <th style="width: 54%">消息</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="log in logs" :key="log.log_id">
+                <td class="mono">{{ formatDate(log.timestamp) }}</td>
+                <td>
+                  <span :class="'level-tag level-' + log.level.toLowerCase()">
+                    {{ log.level }}
+                  </span>
+                </td>
+                <td>{{ formatTaskType(log.task_type) }}</td>
+                <td>{{ formatSource(log.source) }}</td>
+                <td class="log-message">{{ log.message }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'MarketDataLogs',
+  data() {
+    return {
+      logs: [],
+      logsLoading: false
+    };
+  },
+  mounted() {
+    this.loadLogs();
+  },
+  methods: {
+    async loadLogs() {
+      this.logsLoading = true;
+
+      try {
+        const response = await fetch('/api/market-data/logs?limit=100', {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          this.logs = data.logs;
+        }
+      } catch (err) {
+        console.error('Failed to load logs:', err);
+      } finally {
+        this.logsLoading = false;
+      }
+    },
+    formatDate(dateStr) {
+      if (!dateStr) return '-';
+      return new Date(dateStr).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+    },
+    formatTaskType(taskType) {
+      const types = {
+        full: '全量下载',
+        incremental: '增量更新',
+        analyze: '数据分析'
+      };
+      return types[taskType] || taskType || '-';
+    },
+    formatSource(source) {
+      const sources = {
+        manual: '手动',
+        auto: '自动',
+        cron: '定时'
+      };
+      return sources[source] || source || '-';
+    }
+  }
+};
+</script>
+
+<style scoped>
+.logs-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.logs-panel {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.panel-header h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #000;
+}
+
+.panel-body {
+  padding: 16px;
+}
+
+.loading-state,
+.empty-state {
+  padding: 20px;
+  text-align: center;
+  color: #666;
+  font-size: 12px;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 800px;
+}
+
+.table th,
+.table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid #e0e0e0;
+  text-align: left;
+  font-size: 12px;
+  color: #000;
+}
+
+.table th:first-child,
+.table td:first-child {
+  padding-left: 16px;
+}
+
+.table thead th {
+  background: #fafafa;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.level-tag {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid;
+  border-radius: 2px;
+}
+
+.level-info {
+  background: #e3f2fd;
+  color: #1976d2;
+  border-color: #1976d2;
+}
+
+.level-warning {
+  background: #fff3e0;
+  color: #e65100;
+  border-color: #ff9800;
+}
+
+.level-error {
+  background: #ffebee;
+  color: #c62828;
+  border-color: #ef5350;
+}
+
+.log-message {
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.btn {
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  color: #000;
+  padding: 4px 8px;
+  border-radius: 0;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.15s ease;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: #999;
+  background: #f5f5f5;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #fff;
+}
+
+.btn-mini {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+</style>

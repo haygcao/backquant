@@ -14,6 +14,7 @@ def do_incremental_update(task_id: str):
     db_path = Path(__file__).parent.parent.parent / "data" / "market_data.sqlite3"
 
     try:
+        tm.log(task_id, 'INFO', '开始增量更新任务')
         tm.update_progress(task_id, 0, 'download', '开始增量更新...')
 
         # Execute rqalpha update-bundle
@@ -28,9 +29,8 @@ def do_incremental_update(task_id: str):
             text=True
         )
 
-        # Read output and update progress
+        # Read output silently
         for line in process.stdout:
-            tm.log(task_id, 'INFO', line.strip())
             if 'Downloading' in line:
                 tm.update_progress(task_id, 50, 'download', '正在下载更新...')
 
@@ -40,13 +40,13 @@ def do_incremental_update(task_id: str):
             raise RuntimeError(f'rqalpha update-bundle 失败，退出码: {process.returncode}')
 
         tm.update_progress(task_id, 100, 'download', '增量更新完成')
+        tm.log(task_id, 'INFO', '增量更新任务完成')
 
         # Auto-trigger analysis
-        tm.log(task_id, 'INFO', '增量更新完成，自动触发数据分析')
         analyze_task_id = tm.submit_task('analyze', analyze_bundle,
                                          task_args=(bundle_path, db_path),
                                          source='auto')
-        tm.log(task_id, 'INFO', f'已提交分析任务: {analyze_task_id}')
+        tm.log(task_id, 'INFO', f'已自动触发数据分析任务: {analyze_task_id}')
 
     except Exception as e:
         tm.log(task_id, 'ERROR', f'增量更新失败: {str(e)}')
@@ -172,26 +172,26 @@ def do_full_download(task_id: str):
                             last_extracted = extracted_bytes
 
                 time.sleep(2)  # Update every 2 seconds
-            except Exception as e:
-                tm.log(task_id, 'WARNING', f'进度监控错误: {str(e)}')
+            except Exception:
                 time.sleep(2)
 
     try:
+        tm.log(task_id, 'INFO', '开始全量下载任务')
+
         # Get bundle info first
         tm.update_progress(task_id, 0, '准备', '准备下载环境...')
         _get_bundle_info()
 
         # Use temporary directory for download
         temp_dir = tempfile.mkdtemp(prefix='rqalpha-bundle-')
-        tm.log(task_id, 'INFO', f'使用临时目录: {temp_dir}')
 
         # Start progress monitoring thread
         monitor_thread = threading.Thread(target=monitor_progress, daemon=True)
         monitor_thread.start()
 
         # Download to temporary directory
+        tm.log(task_id, 'INFO', '阶段一：开始下载数据包')
         tm.update_progress(task_id, 0, '一、下载', '开始下载数据包...')
-        tm.log(task_id, 'INFO', '使用 rqalpha download-bundle 命令下载')
 
         cmd = ['rqalpha', 'download-bundle', '-d', temp_dir]
         env = os.environ.copy()
@@ -204,11 +204,9 @@ def do_full_download(task_id: str):
             bufsize=1
         )
 
-        # Read output and log
+        # Read output silently
         for line in process.stdout:
-            line = line.strip()
-            if line:
-                tm.log(task_id, 'INFO', line)
+            pass
 
         process.wait()
 
@@ -219,6 +217,8 @@ def do_full_download(task_id: str):
         if process.returncode != 0:
             raise RuntimeError(f'rqalpha download-bundle 失败，退出码: {process.returncode}')
 
+        tm.log(task_id, 'INFO', '阶段一：下载完成')
+
         # Copy from temp directory to target bundle path
         temp_bundle = Path(temp_dir) / 'bundle'
 
@@ -228,10 +228,9 @@ def do_full_download(task_id: str):
         # Calculate total size to copy
         total_copy_size = _dir_size_bytes(temp_bundle)
         tm.update_progress(task_id, 100, '二、解压', f'解压完成: {total_copy_size/(1024*1024):.1f}MB')
-        tm.log(task_id, 'INFO', f'准备复制 {total_copy_size/(1024*1024):.1f}MB 数据')
+        tm.log(task_id, 'INFO', f'阶段二：解压完成，数据大小 {total_copy_size/(1024*1024):.1f}MB')
 
         # Clear target directory contents
-        tm.log(task_id, 'INFO', f'清理目标目录: {bundle_path}')
         if bundle_path.exists():
             for item in bundle_path.iterdir():
                 if item.is_dir():
@@ -242,7 +241,6 @@ def do_full_download(task_id: str):
             bundle_path.mkdir(parents=True, exist_ok=True)
 
         # Copy files from temp to target
-        tm.log(task_id, 'INFO', f'复制文件到: {bundle_path}')
         for item in temp_bundle.iterdir():
             dest = bundle_path / item.name
             if item.is_dir():
@@ -251,14 +249,13 @@ def do_full_download(task_id: str):
                 shutil.copy2(item, dest)
 
         tm.update_progress(task_id, 100, '完成', '下载完成，准备分析数据...')
-        tm.log(task_id, 'INFO', '数据包下载完成')
+        tm.log(task_id, 'INFO', '全量下载任务完成')
 
         # Auto-trigger analysis
-        tm.log(task_id, 'INFO', '自动触发数据分析')
         analyze_task_id = tm.submit_task('analyze', analyze_bundle,
                                          task_args=(bundle_path, db_path),
                                          source='auto')
-        tm.log(task_id, 'INFO', f'已提交分析任务: {analyze_task_id}')
+        tm.log(task_id, 'INFO', f'已自动触发数据分析任务: {analyze_task_id}')
 
     except Exception as e:
         stop_monitoring.set()
@@ -269,6 +266,5 @@ def do_full_download(task_id: str):
         if temp_dir and Path(temp_dir).exists():
             try:
                 shutil.rmtree(temp_dir)
-                tm.log(task_id, 'INFO', f'已清理临时目录: {temp_dir}')
             except Exception as e:
                 tm.log(task_id, 'WARNING', f'清理临时目录失败: {str(e)}')
