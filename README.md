@@ -52,6 +52,7 @@ docker compose up --build -d
 
 ![Screenshot 0](images/screen0.png)
 ![Screenshot 1](images/screen1.png)
+![Screenshot 2](images/screen2.png)
 ![Screenshot 3](images/screen3.png)
 
 ## 二、配置说明
