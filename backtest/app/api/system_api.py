@@ -128,7 +128,10 @@ def _bundle_url_candidates(status_payload: dict | None) -> list[str]:
         return []
 
     candidates: list[str] = []
-    now = datetime.utcnow()
+    # Use Beijing time (UTC+8) to determine the correct bundle month
+    from datetime import timezone, timedelta
+    beijing_tz = timezone(timedelta(hours=8))
+    now = datetime.now(beijing_tz)
     year = now.year
     month = now.month
     for _ in range(0, 12):

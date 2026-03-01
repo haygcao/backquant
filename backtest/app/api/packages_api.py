@@ -28,11 +28,13 @@ def refresh_packages_cache():
         updated_at = datetime.utcnow().isoformat()
 
         with get_db_connection('market_data') as db:
+            db.begin_transaction()
             db.execute("DELETE FROM python_packages")
             db.executemany(
                 "INSERT INTO python_packages (package_name, version, updated_at) VALUES (?, ?, ?)",
                 [(pkg['name'], pkg['version'], updated_at) for pkg in packages],
             )
+            db.commit()
 
         return True
 

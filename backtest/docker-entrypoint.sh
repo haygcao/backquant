@@ -57,7 +57,7 @@ resolve_bundle_meta() {
   meta="$(
     python - <<'PY'
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import urllib.request
 
 explicit = os.environ.get("RQALPHA_BUNDLE_URL", "").strip()
@@ -68,7 +68,9 @@ def candidates():
         return [explicit]
     if not base:
         return []
-    now = datetime.utcnow()
+    # Use Beijing time (UTC+8) to determine the correct bundle month
+    beijing_tz = timezone(timedelta(hours=8))
+    now = datetime.now(beijing_tz)
     year = now.year
     month = now.month
     urls = []

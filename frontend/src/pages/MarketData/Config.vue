@@ -3,7 +3,7 @@
     <div class="config-panel">
       <div class="panel-header">
         <h3>定时任务配置</h3>
-        <span class="header-hint">定时任务每月1号执行，数据来自于RQAlpha</span>
+        <span class="header-hint">数据来自RQAlpha，通常每月第一个交易日后才发布当月数据包</span>
       </div>
       <div class="panel-body">
         <div v-if="configLoading" class="loading-state">加载配置中...</div>
@@ -22,11 +22,11 @@
                 <input
                   v-model="config.cron_expression"
                   type="text"
-                  placeholder="0 4 1 * *"
+                  placeholder="0 4 3 * *"
                   class="text-input"
                   :disabled="hasRunningTask"
                 />
-                <span class="hint-text">示例: 0 4 1 * * (每月1日凌晨4点)</span>
+                <span class="hint-text">示例: 0 4 3 * * (每月3日凌晨4点，建议不早于每月3号)</span>
               </div>
               <div class="form-field">
                 <label class="field-label">任务类型</label>
@@ -89,7 +89,7 @@ export default {
     return {
       config: {
         enabled: true,
-        cron_expression: '0 4 1 * *',
+        cron_expression: '0 4 3 * *',
         task_type: 'full'
       },
       configLoading: true,

@@ -3,9 +3,14 @@
     <div class="logs-panel">
       <div class="panel-header">
         <h3>运行日志</h3>
-        <button @click="loadLogs" class="btn btn-secondary btn-mini" :disabled="logsLoading">
-          {{ logsLoading ? '刷新中...' : '刷新' }}
-        </button>
+        <div class="header-actions">
+          <button @click="loadLogs" class="btn btn-secondary btn-mini" :disabled="logsLoading">
+            {{ logsLoading ? '刷新中...' : '刷新' }}
+          </button>
+          <button @click="showClearConfirm = true" class="btn btn-danger btn-mini" :disabled="logsLoading || logs.length === 0">
+            清空
+          </button>
+        </div>
       </div>
       <div class="panel-body">
         <div v-if="logsLoading" class="loading-state">加载中...</div>
@@ -47,6 +52,24 @@
         </div>
       </div>
     </div>
+
+    <!-- 清空确认弹框 -->
+    <div v-if="showClearConfirm" class="dialog-overlay" @click.self="showClearConfirm = false">
+      <div class="dialog">
+        <div class="dialog-header">
+          <h4>确认清空</h4>
+        </div>
+        <div class="dialog-body">
+          <p>确定要清空所有运行日志吗？此操作不可恢复。</p>
+        </div>
+        <div class="dialog-footer">
+          <button @click="showClearConfirm = false" class="btn btn-secondary">取消</button>
+          <button @click="clearLogs" class="btn btn-danger" :disabled="clearing">
+            {{ clearing ? '清空中...' : '确认清空' }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -59,7 +82,9 @@ export default {
       logsLoading: false,
       currentPage: 1,
       pageSize: 10,
-      total: 0
+      total: 0,
+      showClearConfirm: false,
+      clearing: false
     };
   },
   computed: {
@@ -91,6 +116,31 @@ export default {
         console.error('Failed to load logs:', err);
       } finally {
         this.logsLoading = false;
+      }
+    },
+    async clearLogs() {
+      this.clearing = true;
+      try {
+        const response = await fetch('/api/market-data/logs', {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+
+        if (response.ok) {
+          this.showClearConfirm = false;
+          this.currentPage = 1;
+          this.logs = [];
+          this.total = 0;
+        } else {
+          const data = await response.json();
+          alert(data.error || '清空失败');
+        }
+      } catch (err) {
+        alert('网络错误，请重试');
+      } finally {
+        this.clearing = false;
       }
     },
     goToPage(page) {
@@ -156,6 +206,11 @@ export default {
   font-size: 14px;
   font-weight: 600;
   color: #000;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .panel-body {
@@ -264,6 +319,17 @@ export default {
   background: #fff;
 }
 
+.btn-danger {
+  background: #fff;
+  color: #c62828;
+  border-color: #ef5350;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #ffebee;
+  border-color: #c62828;
+}
+
 .btn-mini {
   padding: 4px 8px;
   font-size: 12px;
@@ -282,5 +348,56 @@ export default {
 .page-info {
   font-size: 12px;
   color: #666;
+}
+
+/* 确认弹框 */
+.dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  width: 360px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.dialog-header {
+  padding: 14px 16px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.dialog-header h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #000;
+}
+
+.dialog-body {
+  padding: 16px;
+}
+
+.dialog-body p {
+  margin: 0;
+  font-size: 13px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.dialog-footer {
+  padding: 12px 16px;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 </style>

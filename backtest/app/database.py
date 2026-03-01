@@ -214,6 +214,19 @@ class DatabaseConnection:
         cursor.executemany(query, params_list)
         return cursor
 
+    def _serialize_row(self, row: dict) -> dict:
+        """Convert datetime/date objects in MariaDB rows to ISO format strings.
+
+        pymysql returns datetime objects for TIMESTAMP/DATE columns.
+        Flask 3.x serializes these as HTTP date strings, which the frontend
+        cannot parse correctly. Convert to ISO 8601 strings instead.
+        """
+        from datetime import datetime, date as date_type
+        return {
+            k: v.isoformat() if isinstance(v, (datetime, date_type)) else v
+            for k, v in row.items()
+        }
+
     def fetchone(self, query: str, params: tuple = ()) -> Optional[dict]:
         """Execute query and fetch one result.
 
@@ -232,7 +245,7 @@ class DatabaseConnection:
         if self.config.db_type == 'sqlite':
             return dict(row)
         else:
-            return row
+            return self._serialize_row(row)
 
     def fetchall(self, query: str, params: tuple = ()) -> list[dict]:
         """Execute query and fetch all results.
@@ -250,7 +263,7 @@ class DatabaseConnection:
         if self.config.db_type == 'sqlite':
             return [dict(row) for row in rows]
         else:
-            return rows
+            return [self._serialize_row(row) for row in rows]
 
     def replace_into(self, table: str, columns: list[str], values: tuple) -> Any:
         """Cross-database compatible INSERT OR REPLACE.

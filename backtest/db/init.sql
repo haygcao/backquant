@@ -134,9 +134,10 @@ CREATE TABLE IF NOT EXISTS research_items (
 -- Initial Data
 -- ============================================================================
 
--- Insert default cron config (disabled by default)
+-- Insert default cron config (enabled by default, runs at 04:00 on 3rd of each month)
+-- 选3号而非1号，因为每月1号米筐通常还未发布当月数据包
 INSERT INTO market_data_cron_config (id, enabled, cron_expression, task_type, updated_at)
-VALUES (1, FALSE, '0 3 1 * *', 'incremental', CURRENT_TIMESTAMP)
+VALUES (1, TRUE, '0 4 3 * *', 'full', CURRENT_TIMESTAMP)
 ON DUPLICATE KEY UPDATE id=id;
 
 -- Note: User initialization is handled by the application

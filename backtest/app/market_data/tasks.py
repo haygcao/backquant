@@ -1,4 +1,5 @@
 """Task functions for market data operations."""
+import re
 import subprocess
 import os
 from pathlib import Path
@@ -96,7 +97,7 @@ def do_full_download(task_id: str):
         """Get bundle URL and total size from HTTP HEAD request."""
         nonlocal download_url, total_bytes
         import urllib.request
-        from datetime import datetime
+        from datetime import datetime, timezone, timedelta
 
         # Generate URL candidates
         base = os.environ.get('RQALPHA_BUNDLE_URL_BASE',
@@ -104,7 +105,9 @@ def do_full_download(task_id: str):
         if not base:
             return
 
-        now = datetime.utcnow()
+        # Use Beijing time (UTC+8) to determine the correct bundle month
+        beijing_tz = timezone(timedelta(hours=8))
+        now = datetime.now(beijing_tz)
         year = now.year
         month = now.month
         candidates = []
@@ -135,6 +138,8 @@ def do_full_download(task_id: str):
         last_downloaded = 0
         last_extracted = 0
         download_complete = False
+        _m = re.search(r'rqbundle_\d+', download_url or '')
+        _bundle_prefix = (_m.group(0) + ': ') if _m else ''
 
         while not stop_monitoring.is_set():
             try:
@@ -157,13 +162,13 @@ def do_full_download(task_id: str):
                             percent = (downloaded_bytes / total_bytes) * 100
                             tm.update_progress(
                                 task_id, int(percent), '一、下载',
-                                f'{downloaded_bytes/(1024*1024):.1f}MB / {total_bytes/(1024*1024):.1f}MB ({percent:.1f}%)'
+                                f'{_bundle_prefix}{downloaded_bytes/(1024*1024):.1f}MB / {total_bytes/(1024*1024):.1f}MB ({percent:.1f}%)'
                             )
                             last_downloaded = downloaded_bytes
                     elif not download_complete:
                         # Download just completed
                         download_complete = True
-                        tm.update_progress(task_id, 100, '一、下载', f'{total_bytes/(1024*1024):.1f}MB / {total_bytes/(1024*1024):.1f}MB (100.0%)')
+                        tm.update_progress(task_id, 100, '一、下载', f'{_bundle_prefix}{total_bytes/(1024*1024):.1f}MB / {total_bytes/(1024*1024):.1f}MB (100.0%)')
                         tm.log(task_id, 'INFO', '下载完成，开始解压')
                         tm.update_progress(task_id, 90, '二、解压', '解压中: 0.0MB')
                     elif extracted_bytes > 0:
@@ -185,6 +190,10 @@ def do_full_download(task_id: str):
         # Get bundle info first
         tm.update_progress(task_id, 0, '准备', '准备下载环境...')
         _get_bundle_info()
+        _m = re.search(r'rqbundle_\d+', download_url or '')
+        _bundle_name = _m.group(0) if _m else ''
+        if _bundle_name:
+            tm.update_progress(task_id, 0, '准备', f'准备下载 {_bundle_name}...')
 
         # Use temporary directory for download
         temp_dir = tempfile.mkdtemp(prefix='rqalpha-bundle-')
@@ -195,7 +204,8 @@ def do_full_download(task_id: str):
 
         # Download to temporary directory
         tm.log(task_id, 'INFO', '阶段一：开始下载数据包')
-        tm.update_progress(task_id, 0, '一、下载', '开始下载数据包...')
+        _start_msg = f'开始下载 {_bundle_name}...' if _bundle_name else '开始下载数据包...'
+        tm.update_progress(task_id, 0, '一、下载', _start_msg)
 
         cmd = ['rqalpha', 'download-bundle', '-d', temp_dir]
         env = os.environ.copy()
