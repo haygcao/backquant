@@ -10,13 +10,12 @@ SET CHARACTER SET utf8mb4;
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS users (
-    user_id INTEGER PRIMARY KEY AUTO_INCREMENT,
-    mobile VARCHAR(20) NOT NULL UNIQUE,
+    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     is_admin BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    INDEX idx_mobile (mobile)
+    INDEX idx_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================
@@ -102,12 +101,15 @@ CREATE TABLE IF NOT EXISTS python_packages (
 -- 3. Backtest Strategy Rename Mapping Tables
 -- ============================================================================
 
-CREATE TABLE IF NOT EXISTS strategy_renames (
+CREATE TABLE IF NOT EXISTS backtest_strategy_rename_map (
     from_id VARCHAR(128) NOT NULL,
     to_id VARCHAR(128) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    updated_by VARCHAR(255) NULL,
     PRIMARY KEY (from_id),
-    INDEX idx_to_id (to_id)
+    INDEX idx_to_id (to_id),
+    INDEX idx_updated_at (updated_at),
+    CHECK (from_id <> to_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================================

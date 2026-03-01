@@ -8,11 +8,10 @@ def do_incremental_update(task_id: str):
     """Execute incremental update task."""
     from app.market_data.task_manager import get_task_manager
     from app.market_data.analyzer import analyze_bundle
-    from app.market_data.utils import get_market_data_db_path
 
     tm = get_task_manager()
     bundle_path = Path(os.environ.get('RQALPHA_BUNDLE_PATH', '/data/rqalpha/bundle'))
-    db_path = get_market_data_db_path()
+    db_config_dict = tm.db_config_dict
 
     try:
         tm.log(task_id, 'INFO', '开始增量更新任务')
@@ -45,9 +44,13 @@ def do_incremental_update(task_id: str):
 
         # Auto-trigger analysis
         analyze_task_id = tm.submit_task('analyze', analyze_bundle,
-                                         task_args=(bundle_path, db_path),
+                                         task_args=(bundle_path, db_config_dict),
                                          source='auto')
         tm.log(task_id, 'INFO', f'已自动触发数据分析任务: {analyze_task_id}')
+
+    except Exception as e:
+        tm.log(task_id, 'ERROR', f'增量更新失败: {str(e)}')
+        raise
 
     except Exception as e:
         tm.log(task_id, 'ERROR', f'增量更新失败: {str(e)}')
@@ -65,8 +68,7 @@ def do_full_download(task_id: str):
 
     tm = get_task_manager()
     bundle_path = Path(os.environ.get('RQALPHA_BUNDLE_PATH', '/data/rqalpha/bundle'))
-    from app.market_data.utils import get_market_data_db_path
-    db_path = get_market_data_db_path()
+    db_config_dict = tm.db_config_dict
     temp_dir = None
     stop_monitoring = threading.Event()
     download_url = None
@@ -260,7 +262,7 @@ def do_full_download(task_id: str):
 
         # Auto-trigger analysis
         analyze_task_id = tm.submit_task('analyze', analyze_bundle,
-                                         task_args=(bundle_path, db_path),
+                                         task_args=(bundle_path, db_config_dict),
                                          source='auto')
         tm.log(task_id, 'INFO', f'已自动触发数据分析任务: {analyze_task_id}')
 

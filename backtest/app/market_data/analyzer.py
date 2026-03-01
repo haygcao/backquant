@@ -1,17 +1,20 @@
 """Bundle data analyzer."""
 from pathlib import Path
 from datetime import datetime
-import sqlite3
 from typing import Dict
 
+from app.database import get_db_connection
 
-def analyze_bundle(task_id: str, bundle_path: Path, db_path: Path):
+
+def analyze_bundle(task_id: str, bundle_path: Path, db_config_dict: dict):
     """Analyze RQAlpha bundle data.
 
     Args:
         task_id: Task ID for progress updates
         bundle_path: Path to bundle directory
-        db_path: Path to database
+        db_config_dict: Serialized DatabaseConfig dict (from DatabaseConfig.to_dict()).
+                        Used instead of a Path so that background threads can connect
+                        to the database without a Flask application context.
     """
     from app.market_data.task_manager import get_task_manager
 
@@ -30,7 +33,7 @@ def analyze_bundle(task_id: str, bundle_path: Path, db_path: Path):
 
         # 3. Save to database
         tm.update_progress(task_id, 90, 'analyze', '正在写入数据库...')
-        _save_stats(db_path, bundle_path, file_stats, data_counts)
+        _save_stats(db_config_dict, bundle_path, file_stats, data_counts)
 
         tm.update_progress(task_id, 100, 'analyze', '分析完成')
         tm.log(task_id, 'INFO', '数据分析任务完成')
@@ -158,17 +161,22 @@ def _parse_bundle_data(bundle_path: Path, tm, task_id: str) -> Dict:
     return counts
 
 
-def _save_stats(db_path: Path, bundle_path: Path, file_stats: Dict, data_counts: Dict):
-    """Save statistics to database (idempotent)."""
-    conn = sqlite3.connect(str(db_path))
+def _save_stats(db_config_dict: dict, bundle_path: Path, file_stats: Dict, data_counts: Dict):
+    """Save statistics to database (idempotent).
 
-    # Use INSERT OR REPLACE for idempotency
-    conn.execute("""
-        INSERT OR REPLACE INTO market_data_stats
-        (id, bundle_path, last_modified, total_files, total_size_bytes,
-         analyzed_at, stock_count, fund_count, futures_count, index_count, bond_count)
-        VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
+    Args:
+        db_config_dict: Serialized DatabaseConfig dict for background-thread connection.
+        bundle_path: Path to the bundle directory.
+        file_stats: File scan results from _scan_files().
+        data_counts: Instrument counts from _parse_bundle_data().
+    """
+    stats_cols = [
+        'id', 'bundle_path', 'last_modified', 'total_files', 'total_size_bytes',
+        'analyzed_at', 'stock_count', 'fund_count', 'futures_count',
+        'index_count', 'bond_count',
+    ]
+    stats_vals = (
+        1,
         str(bundle_path),
         file_stats['last_modified'],
         file_stats['total_files'],
@@ -178,21 +186,23 @@ def _save_stats(db_path: Path, bundle_path: Path, file_stats: Dict, data_counts:
         data_counts['fund_count'],
         data_counts['futures_count'],
         data_counts['index_count'],
-        data_counts['bond_count']
-    ))
+        data_counts['bond_count'],
+    )
 
-    # Clear old file records and insert new ones
-    conn.execute("DELETE FROM market_data_files")
-    for file_info in file_stats.get('files', []):
-        conn.execute("""
-            INSERT INTO market_data_files (file_name, file_path, file_size, modified_at)
-            VALUES (?, ?, ?, ?)
-        """, (
-            file_info['name'],
-            file_info['path'],
-            file_info['size'],
-            file_info['modified']
-        ))
+    file_rows = [
+        (f['name'], f['path'], f['size'], f['modified'])
+        for f in file_stats.get('files', [])
+    ]
 
-    conn.commit()
-    conn.close()
+    with get_db_connection(config_dict=db_config_dict) as db:
+        # Idempotent upsert for the single-row stats table
+        db.replace_into('market_data_stats', stats_cols, stats_vals)
+
+        # Refresh file records
+        db.execute("DELETE FROM market_data_files")
+        if file_rows:
+            db.executemany(
+                "INSERT INTO market_data_files (file_name, file_path, file_size, modified_at) "
+                "VALUES (?, ?, ?, ?)",
+                file_rows,
+            )

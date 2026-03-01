@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -8,6 +7,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from app.auth import generate_auth_token
 from app.api.system_api import bundle_status as _bundle_status
+from app.database import DatabaseConnection, get_db_connection
 
 bp_login = Blueprint("bp_login", __name__)
 
@@ -81,26 +81,21 @@ def _auth_db_path() -> Path:
     return base_dir / "auth.sqlite3"
 
 
-def _open_auth_db() -> sqlite3.Connection:
-    path = _auth_db_path()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(path), timeout=30, isolation_level=None, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    return conn
-
-
-def _init_auth_db(conn: sqlite3.Connection) -> None:
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            is_admin INTEGER NOT NULL DEFAULT 0,
-            created_at TEXT NOT NULL
+def _init_auth_db(db: DatabaseConnection) -> None:
+    """Initialize auth DB schema. Only creates tables for SQLite; MariaDB tables
+    are created by db/init.sql at container startup."""
+    if db.config.db_type == 'sqlite':
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                is_admin INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL
+            )
+            """
         )
-        """
-    )
 
 
 def _hash_password(plain_password: str) -> tuple[str | None, tuple | None]:
@@ -113,8 +108,8 @@ def _hash_password(plain_password: str) -> tuple[str | None, tuple | None]:
     return hashed, None
 
 
-def _ensure_default_admin(conn: sqlite3.Connection) -> tuple[bool, tuple | None]:
-    _init_auth_db(conn)
+def _ensure_default_admin(db: DatabaseConnection) -> tuple[bool, tuple | None]:
+    _init_auth_db(db)
     configured_username = str(current_app.config.get("LOCAL_AUTH_MOBILE", "") or "").strip()
     password_hash = str(current_app.config.get("LOCAL_AUTH_PASSWORD_HASH", "") or "").strip()
     plain_password = str(current_app.config.get("LOCAL_AUTH_PASSWORD", "") or "")
@@ -123,7 +118,7 @@ def _ensure_default_admin(conn: sqlite3.Connection) -> tuple[bool, tuple | None]
     if not configured_username or (not password_hash and not plain_password):
         return False, _error_response(500, "AUTH_CONFIG_ERROR", "default admin config is incomplete")
 
-    row = conn.execute("SELECT id FROM users WHERE username = ?", (configured_username,)).fetchone()
+    row = db.fetchone("SELECT id FROM users WHERE username = ?", (configured_username,))
     if row:
         return True, None
 
@@ -133,7 +128,7 @@ def _ensure_default_admin(conn: sqlite3.Connection) -> tuple[bool, tuple | None]
             return False, err_resp
 
     created_at = datetime.now(tz=timezone.utc).isoformat()
-    conn.execute(
+    db.execute(
         "INSERT INTO users (username, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?)",
         (configured_username, password_hash, 1 if is_admin else 0, created_at),
     )
@@ -146,16 +141,16 @@ def _db_login(username: str, password: str):
     except ImportError:
         return _error_response(500, "AUTH_CONFIG_ERROR", "bcrypt is not installed")
 
-    with _open_auth_db() as conn:
-        ok, err_resp = _ensure_default_admin(conn)
+    with get_db_connection('auth') as db:
+        ok, err_resp = _ensure_default_admin(db)
         if err_resp:
             return err_resp
         if not ok:
             return _error_response(500, "AUTH_CONFIG_ERROR", "failed to init auth database")
-        row = conn.execute(
+        row = db.fetchone(
             "SELECT id, username, password_hash, is_admin FROM users WHERE username = ?",
             (username,),
-        ).fetchone()
+        )
         if not row:
             return _invalid_credentials()
         if not bcrypt.checkpw(password.encode("utf-8"), row["password_hash"].encode("utf-8")):

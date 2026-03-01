@@ -4,15 +4,19 @@ import uuid
 from datetime import datetime
 from typing import Optional, Callable
 from queue import Queue
-from pathlib import Path
-import sqlite3
+
+from app.database import DatabaseConfig, get_db_connection
 
 
 class TaskManager:
-    """Lightweight task manager for market data operations."""
+    """Lightweight task manager for market data operations.
 
-    def __init__(self, db_path: str, max_workers: int = 1):
-        self.db_path = db_path
+    Uses a serialized DatabaseConfig dict so that background worker threads
+    can connect to the database without a Flask application context.
+    """
+
+    def __init__(self, db_config_dict: dict, max_workers: int = 1):
+        self.db_config_dict = db_config_dict
         self.max_workers = max_workers
         self.task_queue = Queue()
         self.workers = []
@@ -20,10 +24,19 @@ class TaskManager:
         self._init_db()
         self._start_workers()
 
+    def _get_db_connection(self):
+        """Return a context manager for a database connection.
+
+        Works in both Flask request context and background threads because
+        it uses the pre-serialized config dict instead of current_app.
+        """
+        return get_db_connection(config_dict=self.db_config_dict)
+
     def _init_db(self):
         """Initialize database tables."""
-        from app.market_data.db_init import init_database
-        init_database(Path(self.db_path))
+        from app.market_data.db_init import init_database_with_connection
+        with self._get_db_connection() as db:
+            init_database_with_connection(db)
 
     def _start_workers(self):
         """Start worker threads."""
@@ -69,30 +82,24 @@ class TaskManager:
 
     def _has_running_task(self) -> bool:
         """Check if there is a running task."""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.execute(
-            "SELECT COUNT(*) FROM market_data_tasks WHERE status IN ('pending', 'running')"
-        )
-        count = cursor.fetchone()[0]
-        conn.close()
-        return count > 0
+        with self._get_db_connection() as db:
+            row = db.fetchone(
+                "SELECT COUNT(*) as count FROM market_data_tasks WHERE status IN ('pending', 'running')"
+            )
+            return (row['count'] if row else 0) > 0
 
     def _create_task(self, task_id: str, task_type: str, source: str):
         """Create task record."""
-        conn = sqlite3.connect(self.db_path)
-        conn.execute(
-            """INSERT INTO market_data_tasks
-               (task_id, task_type, status, source, created_at)
-               VALUES (?, ?, 'pending', ?, ?)""",
-            (task_id, task_type, source, datetime.utcnow().isoformat())
-        )
-        conn.commit()
-        conn.close()
+        with self._get_db_connection() as db:
+            db.execute(
+                """INSERT INTO market_data_tasks
+                   (task_id, task_type, status, source, created_at)
+                   VALUES (?, ?, 'pending', ?, ?)""",
+                (task_id, task_type, source, datetime.utcnow().isoformat())
+            )
 
     def _update_task_status(self, task_id: str, status: str, **kwargs):
         """Update task status."""
-        conn = sqlite3.connect(self.db_path)
-
         updates = ["status = ?"]
         params = [status]
 
@@ -103,59 +110,47 @@ class TaskManager:
 
         params.append(task_id)
         sql = f"UPDATE market_data_tasks SET {', '.join(updates)} WHERE task_id = ?"
-        conn.execute(sql, params)
-        conn.commit()
-        conn.close()
+
+        with self._get_db_connection() as db:
+            db.execute(sql, tuple(params))
 
     def update_progress(self, task_id: str, progress: int, stage: str, message: str):
         """Update task progress."""
-        conn = sqlite3.connect(self.db_path)
-        conn.execute(
-            """UPDATE market_data_tasks
-               SET progress = ?, stage = ?, message = ?
-               WHERE task_id = ?""",
-            (progress, stage, message, task_id)
-        )
-        conn.commit()
-        conn.close()
+        with self._get_db_connection() as db:
+            db.execute(
+                """UPDATE market_data_tasks
+                   SET progress = ?, stage = ?, message = ?
+                   WHERE task_id = ?""",
+                (progress, stage, message, task_id)
+            )
 
     def log(self, task_id: str, level: str, message: str):
         """Log task message."""
-        conn = sqlite3.connect(self.db_path)
-        conn.execute(
-            """INSERT INTO market_data_task_logs
-               (task_id, timestamp, level, message)
-               VALUES (?, ?, ?, ?)""",
-            (task_id, datetime.utcnow().isoformat(), level, message)
-        )
-        conn.commit()
-        conn.close()
+        with self._get_db_connection() as db:
+            db.execute(
+                """INSERT INTO market_data_task_logs
+                   (task_id, timestamp, level, message)
+                   VALUES (?, ?, ?, ?)""",
+                (task_id, datetime.utcnow().isoformat(), level, message)
+            )
 
     def get_task_status(self, task_id: str) -> Optional[dict]:
         """Get task status."""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.execute(
-            "SELECT * FROM market_data_tasks WHERE task_id = ?",
-            (task_id,)
-        )
-        row = cursor.fetchone()
-        conn.close()
-        return dict(row) if row else None
+        with self._get_db_connection() as db:
+            return db.fetchone(
+                "SELECT * FROM market_data_tasks WHERE task_id = ?",
+                (task_id,)
+            )
 
     def get_running_task(self) -> Optional[dict]:
         """Get currently running or pending task."""
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        cursor = conn.execute(
-            """SELECT * FROM market_data_tasks
-               WHERE status IN ('pending', 'running')
-               ORDER BY created_at DESC
-               LIMIT 1"""
-        )
-        row = cursor.fetchone()
-        conn.close()
-        return dict(row) if row else None
+        with self._get_db_connection() as db:
+            return db.fetchone(
+                """SELECT * FROM market_data_tasks
+                   WHERE status IN ('pending', 'running')
+                   ORDER BY created_at DESC
+                   LIMIT 1"""
+            )
 
 
 # Global singleton
@@ -163,11 +158,18 @@ _task_manager: Optional[TaskManager] = None
 
 
 def get_task_manager() -> TaskManager:
-    """Get task manager singleton."""
-    from app.market_data.utils import get_market_data_db_path
+    """Get task manager singleton.
+
+    Must be called at least once within a Flask application context so that
+    the database configuration can be resolved. Subsequent calls (including
+    from background threads) reuse the cached singleton without requiring a
+    Flask context.
+    """
     global _task_manager
     if _task_manager is None:
-        db_path = get_market_data_db_path()
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        _task_manager = TaskManager(str(db_path), max_workers=1)
+        config = DatabaseConfig.from_flask_config('market_data')
+        # Ensure SQLite parent directory exists before handing off to TaskManager
+        if config.db_type == 'sqlite' and config.sqlite_path:
+            config.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+        _task_manager = TaskManager(config.to_dict(), max_workers=1)
     return _task_manager

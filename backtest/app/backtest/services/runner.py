@@ -9,7 +9,6 @@ import re
 import secrets
 import shlex
 import shutil
-import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -22,6 +21,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from flask import current_app
+from app.database import DatabaseConnection, get_db_connection
 
 _STRATEGY_ID_PATTERN = re.compile(r"^[A-Za-z0-9._\-\u4E00-\u9FFF]+$")
 _STRATEGY_ID_MAX_LENGTH = 128
@@ -126,6 +126,25 @@ _RUNNING_PROCESSES: dict[str, subprocess.Popen] = {}
 _CANCEL_REQUESTED_JOB_IDS: set[str] = set()
 _RENAME_LOCK = threading.Lock()
 _RENAME_DB_FILENAME = "backtest_meta.sqlite3"
+
+_BACKTEST_META_DDL_SQLITE = """
+CREATE TABLE IF NOT EXISTS backtest_strategy_rename_map (
+    from_id TEXT NOT NULL PRIMARY KEY,
+    to_id TEXT NOT NULL,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_by TEXT,
+    CHECK (from_id <> to_id)
+)
+"""
+
+
+def _ensure_backtest_meta_schema(db) -> None:
+    """Create backtest_meta tables if they do not exist (SQLite only).
+
+    For MariaDB the schema is managed by db/init.sql at container startup.
+    """
+    if db.config.db_type == 'sqlite':
+        db.execute(_BACKTEST_META_DDL_SQLITE)
 _COMPILE_SANDBOX_DIR_NAME = "compile_sandbox"
 _COMPILE_WORKER_SOURCE = textwrap.dedent(
     """\
@@ -359,58 +378,35 @@ def _rename_db_path() -> Path:
     return path
 
 
-def _open_rename_db() -> sqlite3.Connection:
-    conn = sqlite3.connect(str(_rename_db_path()), timeout=30, isolation_level=None, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    conn.execute("PRAGMA journal_mode = WAL")
-    conn.execute(
-        """
-        CREATE TABLE IF NOT EXISTS backtest_strategy_rename_map (
-            from_id TEXT PRIMARY KEY,
-            to_id TEXT NOT NULL,
-            updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_by TEXT NULL,
-            CHECK (from_id <> to_id)
-        )
-        """
-    )
-    conn.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_backtest_strategy_rename_map_to_id
-        ON backtest_strategy_rename_map(to_id)
-        """
-    )
-    conn.execute(
-        """
-        CREATE INDEX IF NOT EXISTS idx_backtest_strategy_rename_map_updated_at
-        ON backtest_strategy_rename_map(updated_at)
-        """
-    )
-    return conn
-
-
 @contextmanager
 def _rename_db_transaction():
-    conn = _open_rename_db()
-    try:
-        conn.execute("BEGIN IMMEDIATE")
-        yield conn
-        conn.commit()
-    except Exception:
-        conn.rollback()
-        raise
-    finally:
-        conn.close()
+    """Context manager that yields an open DatabaseConnection inside a transaction.
+
+    SQLite: enables WAL + foreign keys, uses BEGIN IMMEDIATE for exclusive writes.
+    MariaDB: uses conn.begin() to start a transaction (disables autocommit).
+    commit() is called on success; rollback() on any exception.
+    """
+    with get_db_connection('backtest_meta') as db:
+        _ensure_backtest_meta_schema(db)
+        if db.config.db_type == 'sqlite':
+            db.execute("PRAGMA foreign_keys = ON")
+            db.execute("PRAGMA journal_mode = WAL")
+        db.begin_transaction()
+        try:
+            yield db
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
 
 
-def _fetch_rename_map(conn: sqlite3.Connection) -> dict[str, str]:
-    rows = conn.execute(
+def _fetch_rename_map(db: DatabaseConnection) -> dict[str, str]:
+    rows = db.fetchall(
         """
         SELECT from_id, to_id
         FROM backtest_strategy_rename_map
         """
-    ).fetchall()
+    )
     mapping: dict[str, str] = {}
     for row in rows:
         from_id = row["from_id"]
@@ -456,43 +452,38 @@ def _compress_rename_map(rename_map: dict[str, str]) -> dict[str, str]:
 
 
 def _sync_rename_map(
-    conn: sqlite3.Connection,
+    db: DatabaseConnection,
     *,
     mapping: dict[str, str],
     updated_by: str | None = None,
 ) -> None:
-    current = _fetch_rename_map(conn)
+    current = _fetch_rename_map(db)
     current_keys = set(current)
     target_keys = set(mapping)
 
     for from_id in current_keys - target_keys:
-        conn.execute(
-            """
-            DELETE FROM backtest_strategy_rename_map
-            WHERE from_id = ?
-            """,
+        db.execute(
+            "DELETE FROM backtest_strategy_rename_map WHERE from_id = ?",
             (from_id,),
         )
 
+    now = datetime.utcnow().isoformat()
     for from_id, to_id in mapping.items():
         if current.get(from_id) == to_id:
             continue
-        conn.execute(
-            """
-            INSERT INTO backtest_strategy_rename_map (from_id, to_id, updated_by, updated_at)
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(from_id) DO UPDATE SET
-                to_id = excluded.to_id,
-                updated_by = excluded.updated_by,
-                updated_at = CURRENT_TIMESTAMP
-            """,
-            (from_id, to_id, updated_by),
+        db.upsert(
+            table='backtest_strategy_rename_map',
+            insert_cols=['from_id', 'to_id', 'updated_by', 'updated_at'],
+            insert_vals=(from_id, to_id, updated_by, now),
+            conflict_col='from_id',
+            update_cols=['to_id', 'updated_by', 'updated_at'],
         )
 
 
 def get_strategy_rename_map() -> dict[str, str]:
-    with _open_rename_db() as conn:
-        raw_map = _fetch_rename_map(conn)
+    with get_db_connection('backtest_meta') as db:
+        _ensure_backtest_meta_schema(db)
+        raw_map = _fetch_rename_map(db)
     return _compress_rename_map(raw_map)
 
 
@@ -539,10 +530,10 @@ def record_strategy_rename(
     if normalized_from == normalized_to:
         return get_strategy_rename_map()
 
-    with _RENAME_LOCK, _rename_db_transaction() as conn:
-        current = _fetch_rename_map(conn)
+    with _RENAME_LOCK, _rename_db_transaction() as db:
+        current = _fetch_rename_map(db)
         flattened = _record_rename_in_map(current, from_id=normalized_from, to_id=normalized_to)
-        _sync_rename_map(conn, mapping=flattened, updated_by=updated_by)
+        _sync_rename_map(db, mapping=flattened, updated_by=updated_by)
         return flattened
 
 
@@ -844,8 +835,8 @@ def delete_strategy_cascade(
     if normalized_strategy_id in _BUILTIN_STRATEGY_IDS:
         raise ValueError(f"Cannot delete built-in strategy: {normalized_strategy_id}")
 
-    with _RENAME_LOCK, _rename_db_transaction() as conn:
-        raw_map = _fetch_rename_map(conn)
+    with _RENAME_LOCK, _rename_db_transaction() as db:
+        raw_map = _fetch_rename_map(db)
         flattened_map = _compress_rename_map(raw_map)
         canonical_strategy_id = resolve_current_strategy_id(normalized_strategy_id, flattened_map)
 
@@ -870,7 +861,7 @@ def delete_strategy_cascade(
             for from_id, to_id in flattened_map.items()
             if from_id not in accepted_strategy_ids and to_id not in accepted_strategy_ids
         }
-        _sync_rename_map(conn, mapping=filtered_map, updated_by=updated_by)
+        _sync_rename_map(db, mapping=filtered_map, updated_by=updated_by)
 
     return canonical_strategy_id, len(job_ids)
 
@@ -894,8 +885,8 @@ def rename_strategy(
             "no_op": True,
         }
 
-    with _RENAME_LOCK, _rename_db_transaction() as conn:
-        current_map = _fetch_rename_map(conn)
+    with _RENAME_LOCK, _rename_db_transaction() as db:
+        current_map = _fetch_rename_map(db)
         flattened_map = _compress_rename_map(current_map)
         canonical_from = resolve_current_strategy_id(normalized_from, flattened_map)
         canonical_to = resolve_current_strategy_id(normalized_to, flattened_map)
@@ -931,7 +922,7 @@ def rename_strategy(
             deleted_old = True
 
             flattened_next = _record_rename_in_map(flattened_map, from_id=canonical_from, to_id=canonical_to)
-            _sync_rename_map(conn, mapping=flattened_next, updated_by=updated_by)
+            _sync_rename_map(db, mapping=flattened_next, updated_by=updated_by)
         except Exception:
             if target_path.exists():
                 try:
