@@ -2,6 +2,25 @@
 from pathlib import Path
 from datetime import datetime
 from typing import Tuple, Optional
+from flask import current_app
+
+
+def get_market_data_db_path() -> Path:
+    """Get market data database path.
+
+    Priority:
+    1. MARKET_DATA_DB_PATH environment variable (if set)
+    2. <BACKTEST_BASE_DIR>/market_data.sqlite3 (default, persisted in volume)
+
+    Returns:
+        Path: Absolute path to market_data.sqlite3
+    """
+    raw = str(current_app.config.get("MARKET_DATA_DB_PATH", "") or "").strip()
+    if raw:
+        return Path(raw).expanduser()
+
+    base_dir = Path(str(current_app.config.get("BACKTEST_BASE_DIR", "/tmp"))).expanduser()
+    return base_dir / "market_data.sqlite3"
 
 
 def get_bundle_update_status(bundle_path: Path) -> Tuple[bool, Optional[str]]:

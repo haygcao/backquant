@@ -32,9 +32,9 @@ def create_app(config_name):
             ensure_default_demo_strategy()
             # Initialize market data database before scheduler
             from .market_data.db_init import init_database
+            from .market_data.utils import get_market_data_db_path
             from .api.packages_api import refresh_packages_cache
-            from pathlib import Path
-            db_path = Path(__file__).parent.parent / "data" / "market_data.sqlite3"
+            db_path = get_market_data_db_path()
             db_path.parent.mkdir(parents=True, exist_ok=True)
             init_database(db_path)
             init_scheduler()

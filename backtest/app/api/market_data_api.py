@@ -16,7 +16,8 @@ bp_market_data = Blueprint('market_data', __name__, url_prefix='/api/market-data
 
 def _get_db_path():
     """Get database path."""
-    return Path(__file__).parent.parent.parent / "data" / "market_data.sqlite3"
+    from app.market_data.utils import get_market_data_db_path
+    return get_market_data_db_path()
 
 
 def _get_bundle_path():

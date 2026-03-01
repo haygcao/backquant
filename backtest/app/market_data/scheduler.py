@@ -35,8 +35,9 @@ def cron_job_handler():
     """Cron job handler."""
     from app.market_data.task_manager import get_task_manager
     from app.market_data.tasks import do_full_download, do_incremental_update
+    from app.market_data.utils import get_market_data_db_path
 
-    db_path = Path(__file__).parent.parent.parent / "data" / "market_data.sqlite3"
+    db_path = get_market_data_db_path()
     config = load_cron_config(db_path)
 
     if not config or not config['enabled']:
@@ -104,7 +105,9 @@ def update_cron_schedule(cron_expression: str):
 
 def init_scheduler():
     """Initialize scheduler on app startup."""
-    db_path = Path(__file__).parent.parent.parent / "data" / "market_data.sqlite3"
+    from app.market_data.utils import get_market_data_db_path
+
+    db_path = get_market_data_db_path()
     config = load_cron_config(db_path)
 
     if config and config['enabled'] and config['cron_expression']:

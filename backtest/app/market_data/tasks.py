@@ -8,10 +8,11 @@ def do_incremental_update(task_id: str):
     """Execute incremental update task."""
     from app.market_data.task_manager import get_task_manager
     from app.market_data.analyzer import analyze_bundle
+    from app.market_data.utils import get_market_data_db_path
 
     tm = get_task_manager()
     bundle_path = Path(os.environ.get('RQALPHA_BUNDLE_PATH', '/data/rqalpha/bundle'))
-    db_path = Path(__file__).parent.parent.parent / "data" / "market_data.sqlite3"
+    db_path = get_market_data_db_path()
 
     try:
         tm.log(task_id, 'INFO', '开始增量更新任务')
@@ -64,7 +65,8 @@ def do_full_download(task_id: str):
 
     tm = get_task_manager()
     bundle_path = Path(os.environ.get('RQALPHA_BUNDLE_PATH', '/data/rqalpha/bundle'))
-    db_path = Path(__file__).parent.parent.parent / "data" / "market_data.sqlite3"
+    from app.market_data.utils import get_market_data_db_path
+    db_path = get_market_data_db_path()
     temp_dir = None
     stop_monitoring = threading.Event()
     download_url = None

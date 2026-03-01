@@ -164,9 +164,10 @@ _task_manager: Optional[TaskManager] = None
 
 def get_task_manager() -> TaskManager:
     """Get task manager singleton."""
+    from app.market_data.utils import get_market_data_db_path
     global _task_manager
     if _task_manager is None:
-        db_path = Path(__file__).parent.parent.parent / "data" / "market_data.sqlite3"
+        db_path = get_market_data_db_path()
         db_path.parent.mkdir(parents=True, exist_ok=True)
         _task_manager = TaskManager(str(db_path), max_workers=1)
     return _task_manager

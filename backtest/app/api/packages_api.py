@@ -13,7 +13,8 @@ bp_packages = Blueprint('packages', __name__, url_prefix='/api/packages')
 
 def _get_db_path():
     """Get database path."""
-    return Path(__file__).parent.parent.parent / "data" / "market_data.sqlite3"
+    from app.market_data.utils import get_market_data_db_path
+    return get_market_data_db_path()
 
 
 def refresh_packages_cache():

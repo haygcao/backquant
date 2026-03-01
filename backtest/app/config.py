@@ -80,6 +80,15 @@ class Config:
     BACKTEST_KEEP_DAYS = _int_from_env("BACKTEST_KEEP_DAYS", 30)
     BACKTEST_IDEMPOTENCY_WINDOW_SECONDS = _int_from_env("BACKTEST_IDEMPOTENCY_WINDOW_SECONDS", 30)
     BACKTEST_ALLOWED_FREQUENCIES = _list_from_env("BACKTEST_ALLOWED_FREQUENCIES", ("1d",))
+    # Market data database path (default: <BACKTEST_BASE_DIR>/market_data.sqlite3).
+    MARKET_DATA_DB_PATH = _str_from_env("MARKET_DATA_DB_PATH", "")
+    # Database configuration (SQLite or MariaDB)
+    DB_TYPE = _str_from_env("DB_TYPE", "sqlite")
+    DB_HOST = _str_from_env("DB_HOST", "localhost")
+    DB_PORT = _int_from_env("DB_PORT", 3306)
+    DB_NAME = _str_from_env("DB_NAME", "backquant")
+    DB_USER = _str_from_env("DB_USER", "root")
+    DB_PASSWORD = _str_from_env("DB_PASSWORD", "")
     # Research workbench storage and notebook session settings.
     # RESEARCH_PUBLIC_BASE_URL is optional; when empty, request.host_url is used.
     RESEARCH_PUBLIC_BASE_URL = _str_from_env("RESEARCH_PUBLIC_BASE_URL", "")

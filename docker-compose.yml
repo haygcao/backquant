@@ -1,4 +1,22 @@
 services:
+  mariadb:
+    image: mariadb:11.2
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-backquant_root_pass}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-backquant}
+      MYSQL_USER: ${MYSQL_USER:-backquant_user}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-backquant_pass}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+      - ./backtest/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
   backend:
     build:
       context: ./backtest
@@ -22,12 +40,22 @@ services:
       RESEARCH_NOTEBOOK_API_BASE: http://jupyter:8888/jupyter
       RESEARCH_NOTEBOOK_API_TOKEN: ${JUPYTER_TOKEN:-}
       RESEARCH_PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
+      # Database configuration (default: sqlite, set to mariadb to enable)
+      DB_TYPE: ${DB_TYPE:-sqlite}
+      DB_HOST: ${DB_HOST:-mariadb}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_NAME: ${DB_NAME:-backquant}
+      DB_USER: ${DB_USER:-backquant_user}
+      DB_PASSWORD: ${DB_PASSWORD:-backquant_pass}
     volumes:
       - backtest_data:/data/backtest
       - rqalpha_bundle:/data/rqalpha/bundle
       - notebooks:/data/notebooks
     depends_on:
-      - jupyter
+      mariadb:
+        condition: service_healthy
+      jupyter:
+        condition: service_started
     restart: unless-stopped
 
   jupyter:
@@ -65,6 +93,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  mariadb_data:
   backtest_data:
   rqalpha_bundle:
   notebooks:
