@@ -127,7 +127,7 @@ def _ensure_default_admin(db: DatabaseConnection) -> tuple[bool, tuple | None]:
         if err_resp:
             return False, err_resp
 
-    created_at = datetime.now(tz=timezone.utc).isoformat()
+    created_at = datetime.now(tz=timezone.utc).strftime('%Y-%m-%d %H:%M:%S')
     db.execute(
         "INSERT INTO users (username, password_hash, is_admin, created_at) VALUES (?, ?, ?, ?)",
         (configured_username, password_hash, 1 if is_admin else 0, created_at),
