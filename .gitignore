@@ -47,3 +47,7 @@ bmad.log
 .claude
 .claude/cache/
 .claude/tmp/
+
+# BMAD output & config
+_bmad/
+_bmad-output/
