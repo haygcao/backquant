@@ -1389,6 +1389,7 @@ def build_config_yaml(
           benchmark: {benchmark}
           accounts:
             STOCK: {cash}
+            FUTURE: {cash}
 
         mod:
           sys_analyser:
@@ -1816,7 +1817,10 @@ def _build_research_config(
             "start_date": start_date,
             "end_date": end_date,
             "frequency": frequency,
-            "accounts": {"stock": float(init_cash)},
+            "accounts": {
+                "stock": float(init_cash),
+                "future": float(init_cash),
+            },
             "benchmark": benchmark,
             "data_bundle_path": str(bundle_path.resolve()),
             "auto_update_bundle": False,
