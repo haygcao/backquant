@@ -5,6 +5,7 @@
 <u>**完全本地化部署，策略和数据本地运行，不依赖第三方平台，既保障隐私安全，又具备高度可定制性。**</u>
 
 本仓库包含后端（Flask + RQAlpha）与前端（Vue 3）两部分，并提供 Research 工作台（Jupyter Lab）集成能力。
+支持 **RQAlpha 股票日线回测** 与 **VnPy 期货 CTA 策略可视化回测**，期货数据从 rqalpha bundle 一键导入 MariaDB。
 **推荐使用 Docker 安装部署**，一次性包含 Flask、Jupyter、Nginx 与前端构建产物，目标是镜像拉下来就能跑。
 
 ## 一、Docker 安装与部署
@@ -34,6 +35,7 @@ docker compose up --build -d
 ### RQAlpha 与日线数据
 
 - Docker 镜像已内置 RQAlpha（`rqalpha==6.1.2`）。
+- 镜像已预装 VnPy 4.3.0（含 vnpy_ctastrategy、vnpy_mysql 等），支持期货 CTA 策略回测。
 - 镜像已预装常用量化库：`numpy`、`pandas`、`statsmodels`、`scikit-learn`
 - 内置一个默认策略 `demo`，可直接在策略列表中运行。
 - 日线数据按月更新：容器启动时自动写入 crontab（`/etc/cron.d/rqalpha-bundle`，默认每月 1 日 03:00 运行更新任务）。
@@ -53,6 +55,10 @@ docker compose up --build -d
 ![Screenshot 0](images/screen0.png)
 ![Screenshot 1](images/screen1.png)
 ![Screenshot 3](images/screen3.png)
+
+- screen0：回测工作台 — 策略回测结果与收益曲线
+- screen1：数据管理 — VNPY 期货数据管理（按交易所统计、饼图分布）
+- screen3：研究工作台 — Jupyter Lab 中编写 VnPy CTA 期货策略
 
 ## 二、配置说明
 
