@@ -24,10 +24,6 @@ const BacktestResult = () => import(
   /* webpackChunkName: "route-backtests" */
   '@/pages/BacktestResult.vue'
 );
-const ResearchIndex = () => import(
-  /* webpackChunkName: "route-research" */
-  '@/pages/ResearchIndex.vue'
-);
 const ResearchNotebook = () => import(
   /* webpackChunkName: "route-research" */
   '@/pages/ResearchNotebook.vue'
@@ -64,8 +60,8 @@ const routes = [
     { path: '/strategies', component: StrategiesIndex, name: 'strategies' },
     { path: '/strategies/:id/edit', component: StrategyEditor, name: 'strategy-edit' },
     { path: '/backtests/:runId', component: BacktestResult, name: 'backtest-result' },
-    { path: '/research', component: ResearchIndex, name: 'research-index' },
-    { path: '/research/:id/notebook', component: ResearchNotebook, name: 'research-notebook' },
+    { path: '/research', component: ResearchNotebook, name: 'research-workbench' },
+    { path: '/research/:id/notebook', redirect: '/research', name: 'research-notebook-legacy' },
     {
       path: '/market-data',
       component: MarketDataLayout,

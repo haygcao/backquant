@@ -1,102 +1,41 @@
 <template>
-  <div class="research-notebook-page" :class="{ 'header-collapsed': headerCollapsed, 'is-fullscreen': isFullscreen }">
-    <header v-if="!isFullscreen" class="page-header" :class="{ 'is-collapsed': headerCollapsed }">
-      <div class="top-line">
-        <div class="title-inline">
-          <h2>{{ pageTitle }}</h2>
-          <div class="sub-inline">
-            <span class="meta-item">
-              研究 ID：<span class="mono id-muted">{{ researchId || '-' }}</span>
-            </span>
-            <span class="meta-chip">Kernel：{{ research.kernel || '-' }}</span>
-            <span class="meta-chip">最后修改：{{ formatMetaDate(research.updated_at || research.created_at) }}</span>
+  <div class="research-notebook-page">
+    <div v-if="isBootstrapping" class="state-shell">
+      <div class="state-card">
+        <div class="state-title">正在打开研究工作台</div>
+        <p class="state-text">正在连接 Notebook 会话，请稍候。</p>
+      </div>
+    </div>
+
+    <div v-else-if="!hasNotebookSession" class="state-shell">
+      <div class="state-card">
+        <div class="state-title">Notebook 会话</div>
+        <p class="state-text">{{ stateMessage }}</p>
+        <button class="state-action" type="button" :disabled="sessionLoading" @click="bootstrap(false)">
+          {{ sessionLoading ? '连接中...' : '重新连接' }}
+        </button>
+      </div>
+    </div>
+
+    <div v-else class="iframe-shell" :class="{ 'is-loading': iframeLoading }">
+      <transition name="loading-fade">
+        <div v-if="iframeLoading" class="iframe-loading-mask">
+          <div class="loading-card">
+            <div class="loading-spinner" aria-hidden="true"></div>
+            <div class="loading-title">Notebook 正在启动</div>
+            <p class="loading-text">Jupyter 前端初始化通常需要一点时间，请稍候。</p>
           </div>
         </div>
-        <div class="top-actions">
-          <button
-            class="header-toggle-btn"
-            type="button"
-            :class="{ 'is-collapsed': headerCollapsed }"
-            :aria-label="headerCollapsed ? '展开顶部信息' : '收起顶部信息'"
-            :title="headerCollapsed ? '展开顶部信息' : '收起顶部信息'"
-            @click="toggleHeader"
-          >
-            <svg class="toggle-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M7 10l5 5 5-5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" />
-            </svg>
-          </button>
-          <button class="btn btn-secondary" type="button" @click="goBack">
-            返回研究列表
-          </button>
-        </div>
-      </div>
-
-      <div class="header-expandable">
-        <div v-if="metaError" class="inline-error header-error">{{ metaError }}</div>
-
-        <div class="session-line">
-          <div class="session-meta">
-            <div class="session-item">
-              <span class="info-label">会话状态</span>
-              <span class="info-value">
-                <span class="status-chip" :class="statusClass(session?.status)">{{ session?.status || '-' }}</span>
-              </span>
-            </div>
-          </div>
-          <div class="actions-row">
-            <button class="btn btn-primary" type="button" :disabled="sessionLoading || !researchId" @click="startSession">
-              {{ sessionLoading ? '处理中...' : (session ? '重建会话' : '启动会话') }}
-            </button>
-            <button class="btn btn-danger" type="button" :disabled="sessionLoading || !session" @click="stopSession">
-              结束会话
-            </button>
-          </div>
-        </div>
-      </div>
-    </header>
-
-    <section class="notebook-main">
-      <div class="iframe-card">
-        <div class="iframe-head">
-          <h3>Notebook 会话</h3>
-          <button
-            class="btn btn-icon"
-            type="button"
-            :title="isFullscreen ? '退出全屏' : '全屏'"
-            @click="toggleFullscreen"
-          >
-            <svg v-if="!isFullscreen" class="icon" viewBox="0 0 24 24" fill="none">
-              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            <svg v-else class="icon" viewBox="0 0 24 24" fill="none">
-              <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
-        </div>
-
-        <div v-if="!hasNotebookSession" class="iframe-empty">
-          <p v-if="hasSessionRecord">
-            会话已创建（{{ session.session_id }}），正在准备 Notebook 地址，请稍候。
-          </p>
-          <p v-else>当前没有可用的 Notebook 会话。</p>
-          <button class="btn btn-primary" type="button" :disabled="sessionLoading" @click="startSession">
-            {{ sessionLoading ? '启动中...' : (hasSessionRecord ? '重建会话' : '立即启动会话') }}
-          </button>
-        </div>
-
-        <div v-else class="iframe-wrap">
-          <div v-if="iframeLoading" class="iframe-loading">Notebook 加载中...</div>
-          <iframe
-            :key="`notebook-frame-${frameNonce}`"
-            ref="notebookFrame"
-            class="notebook-iframe"
-            :src="notebookUrl"
-            frameborder="0"
-            @load="handleIframeLoad"
-          />
-        </div>
-      </div>
-    </section>
+      </transition>
+      <iframe
+        :key="`notebook-frame-${frameNonce}`"
+        ref="notebookFrame"
+        class="notebook-iframe"
+        :src="notebookUrl"
+        frameborder="0"
+        @load="handleIframeLoad"
+      />
+    </div>
 
     <transition name="toast">
       <div v-if="showToast" class="toast" :class="toastType">
@@ -109,10 +48,14 @@
 <script>
 import {
   getResearch,
-  getNotebookSession,
-  createNotebookSession,
-  stopNotebookSession
+  createResearch,
+  createNotebookSession
 } from '@/api/research';
+
+const DEFAULT_RESEARCH_ID = 'research_workbench';
+const DEFAULT_RESEARCH_TITLE = '研究工作台';
+const DEFAULT_KERNEL = 'python3';
+const DEFAULT_NOTEBOOK_PATH = 'research/notebooks/research_workbench.ipynb';
 
 function normalizeTags(raw) {
   if (Array.isArray(raw)) {
@@ -127,16 +70,16 @@ function normalizeTags(raw) {
   return [];
 }
 
-function normalizeResearch(payload, fallbackId = '') {
+function normalizeResearch(payload, fallbackId = DEFAULT_RESEARCH_ID) {
   const raw = payload && typeof payload === 'object' ? payload : {};
   const root = raw.research && typeof raw.research === 'object' ? raw.research : raw;
   return {
     id: String(root.id || root.research_id || fallbackId || '').trim(),
-    title: String(root.title || root.name || '').trim(),
+    title: String(root.title || root.name || DEFAULT_RESEARCH_TITLE).trim(),
     description: String(root.description || root.desc || '').trim(),
     notebook_path: String(root.notebook_path || root.notebookPath || root.path || '').trim(),
-    kernel: String(root.kernel || root.kernel_name || '').trim(),
-    status: String(root.status || 'DRAFT').trim().toUpperCase(),
+    kernel: String(root.kernel || root.kernel_name || DEFAULT_KERNEL).trim(),
+    status: String(root.status || 'ACTIVE').trim().toUpperCase(),
     tags: normalizeTags(root.tags),
     created_at: root.created_at || root.createdAt || root.ctime || '',
     updated_at: root.updated_at || root.updatedAt || root.mtime || ''
@@ -186,7 +129,6 @@ function toAbsoluteUrl(rawUrl) {
     return '';
   }
 
-  // 解决 Mac 浏览器跳到 http://localhost:8088/... 的问题
   raw = raw.replace(/^https?:\/\/(localhost|127\.0\.0\.1):8088\/jupyter\/?/i, '/jupyter/');
   raw = raw.replace(/^https?:\/\/(localhost|127\.0\.0\.1):8088\/?/i, '/');
 
@@ -205,37 +147,34 @@ export default {
   data() {
     return {
       research: {
-        id: '',
-        title: '',
+        id: DEFAULT_RESEARCH_ID,
+        title: DEFAULT_RESEARCH_TITLE,
         description: '',
         notebook_path: '',
-        kernel: '',
-        status: 'DRAFT',
+        kernel: DEFAULT_KERNEL,
+        status: 'ACTIVE',
         tags: [],
         created_at: '',
         updated_at: ''
       },
-      metaLoading: false,
-      metaError: '',
       session: null,
-      headerCollapsed: false,
       sessionLoading: false,
+      isBootstrapping: true,
       iframeLoading: false,
+      iframeReady: false,
       frameNonce: 0,
       iframePathRecoveryTried: false,
+      iframeReadyTimer: null,
+      bootstrapError: '',
       showToast: false,
       toastType: 'success',
       toastMessage: '',
-      toastTimer: null,
-      isFullscreen: false
+      toastTimer: null
     };
   },
   computed: {
     researchId() {
-      return String(this.$route.params?.id || '').trim();
-    },
-    pageTitle() {
-      return String(this.research.title || '').trim() || this.researchId || '研究会话';
+      return DEFAULT_RESEARCH_ID;
     },
     remoteNotebookUrl() {
       return toAbsoluteUrl(
@@ -252,13 +191,18 @@ export default {
     },
     hasSessionRecord() {
       return Boolean(this.session?.session_id);
-    }
-  },
-  watch: {
-    async researchId(nextId, prevId) {
-      if (nextId && nextId !== prevId) {
-        await this.bootstrap();
+    },
+    stateMessage() {
+      if (this.bootstrapError) {
+        return this.bootstrapError;
       }
+      if (this.sessionLoading) {
+        return '正在建立 Notebook 会话，请稍候。';
+      }
+      if (this.hasSessionRecord) {
+        return '会话已创建，正在等待 Notebook 地址。';
+      }
+      return '当前没有可用的 Notebook 会话。';
     }
   },
   methods: {
@@ -291,50 +235,13 @@ export default {
       }
       return (error && error.message) || fallback;
     },
-    formatMetaDate(value) {
-      if (!value) {
-        return '-';
-      }
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) {
-        return String(value);
-      }
-      return date.toLocaleString('zh-CN');
-    },
-    statusClass(status) {
-      const text = String(status || '').toUpperCase();
-      if (text === 'ACTIVE' || text === 'RUNNING') {
-        return 'is-active';
-      }
-      if (text === 'ARCHIVED' || text === 'STOPPED') {
-        return 'is-archived';
-      }
-      if (text === 'FAILED' || text === 'ERROR') {
-        return 'is-error';
-      }
-      return 'is-draft';
-    },
-    goBack() {
-      this.$router.push({ name: 'research-index' });
-    },
-    toggleHeader() {
-      this.headerCollapsed = !this.headerCollapsed;
-    },
-    toggleFullscreen() {
-      this.isFullscreen = !this.isFullscreen;
-      if (this.isFullscreen) {
-        this.headerCollapsed = true;
-      }
-    },
-    buildSessionPayload(forceNotebookPath = false) {
+    buildSessionPayload() {
       const payload = {};
-      const kernel = String(this.research.kernel || 'python3').trim();
+      const kernel = String(this.research.kernel || DEFAULT_KERNEL).trim();
       if (kernel) {
         payload.kernel = kernel;
       }
-      if (forceNotebookPath) {
-        payload.notebook_path = `${this.researchId}.ipynb`;
-      }
+      payload.notebook_path = DEFAULT_NOTEBOOK_PATH;
       return payload;
     },
     isNotebookPathIssue(message) {
@@ -350,8 +257,40 @@ export default {
         || text.includes('not found')
       );
     },
+    async ensureResearchExists() {
+      try {
+        const data = await getResearch(this.researchId);
+        this.research = normalizeResearch(data, this.researchId);
+        return;
+      } catch (error) {
+        const status = Number(error?.response?.status || 0);
+        if (status !== 404) {
+          throw error;
+        }
+      }
+
+      try {
+        const created = await createResearch({
+          id: this.researchId,
+          title: DEFAULT_RESEARCH_TITLE,
+          description: '',
+          notebook_path: DEFAULT_NOTEBOOK_PATH,
+          kernel: DEFAULT_KERNEL,
+          status: 'ACTIVE',
+          tags: []
+        });
+        this.research = normalizeResearch(created, this.researchId);
+      } catch (error) {
+        const status = Number(error?.response?.status || 0);
+        if (status !== 409) {
+          throw error;
+        }
+        const data = await getResearch(this.researchId);
+        this.research = normalizeResearch(data, this.researchId);
+      }
+    },
     async requestSessionWithFallback() {
-      const firstPayload = this.buildSessionPayload(false);
+      const firstPayload = this.buildSessionPayload();
       try {
         const data = await createNotebookSession(this.researchId, firstPayload);
         return normalizeSession(data);
@@ -360,7 +299,7 @@ export default {
         if (!this.isNotebookPathIssue(message)) {
           throw error;
         }
-        const fallbackPayload = this.buildSessionPayload(true);
+        const fallbackPayload = this.buildSessionPayload();
         const data = await createNotebookSession(this.researchId, fallbackPayload);
         return normalizeSession(data);
       }
@@ -373,78 +312,12 @@ export default {
         }
         this.session = session;
         this.iframePathRecoveryTried = false;
+        this.iframeReady = false;
         this.frameNonce += 1;
         this.iframeLoading = !!this.notebookUrl;
         return this.hasNotebookSession;
       } catch (error) {
         return false;
-      }
-    },
-    async bootstrap() {
-      await this.fetchResearch();
-      await this.fetchSession(true);
-    },
-    async fetchResearch() {
-      if (!this.researchId) {
-        return;
-      }
-      this.metaLoading = true;
-      this.metaError = '';
-      try {
-        const data = await getResearch(this.researchId);
-        this.research = normalizeResearch(data, this.researchId);
-      } catch (error) {
-        this.metaError = this.getErrorMessage(error, '加载研究信息失败');
-      } finally {
-        this.metaLoading = false;
-      }
-    },
-    async refreshSessionStatus(silent = true) {
-      if (!this.researchId) {
-        return;
-      }
-      try {
-        const data = await getNotebookSession(this.researchId);
-        this.session = normalizeSession(data);
-        this.iframePathRecoveryTried = false;
-        this.iframeLoading = !!this.notebookUrl;
-      } catch (error) {
-        const status = Number(error?.response?.status || 0);
-        if (status === 404) {
-          this.session = null;
-          this.iframeLoading = false;
-          if (!silent) {
-            this.showMessage('会话不存在/已过期');
-          }
-          return;
-        }
-        if (!silent) {
-          this.showMessage(this.getErrorMessage(error, '刷新会话失败'), 'error');
-        }
-      }
-    },
-    async fetchSession(silent = true) {
-      if (!this.researchId) {
-        return;
-      }
-      this.sessionLoading = true;
-      try {
-        this.session = await this.requestSessionWithFallback();
-        this.iframePathRecoveryTried = false;
-        this.iframeLoading = !!this.notebookUrl;
-      } catch (error) {
-        const message = this.getErrorMessage(error, '');
-        if (this.isNotebookPathIssue(message)) {
-          const recovered = await this.recoverSessionAfterPathError();
-          if (recovered) {
-            return;
-          }
-        }
-        if (!silent) {
-          this.showMessage(this.getErrorMessage(error, '刷新会话失败'), 'error');
-        }
-      } finally {
-        this.sessionLoading = false;
       }
     },
     sleep(ms) {
@@ -474,24 +347,21 @@ export default {
               return true;
             }
           }
-          // 后端还在准备会话时可能短暂不可读，继续重试。
         }
       }
       return this.hasNotebookSession;
     },
-    async startSession() {
-      if (!this.researchId) {
-        return;
-      }
+    async bootstrap(showErrorToast = false) {
       this.sessionLoading = true;
+      this.isBootstrapping = true;
+      this.bootstrapError = '';
       try {
+        await this.ensureResearchExists();
         this.session = await this.requestSessionWithFallback();
         if (!this.session) {
           throw new Error('后端未返回会话信息');
         }
-
         if (!this.hasNotebookSession) {
-          this.showMessage('会话已创建，正在等待 Notebook 地址...');
           const ready = await this.waitForNotebookUrl(10, 1000);
           if (!ready) {
             throw new Error('会话已创建，但后端尚未返回可用的 Notebook 地址');
@@ -499,61 +369,87 @@ export default {
         }
         this.frameNonce += 1;
         this.iframePathRecoveryTried = false;
+        this.iframeReady = false;
         this.iframeLoading = !!this.notebookUrl;
-        this.showMessage('Notebook 会话已启动');
       } catch (error) {
         const message = this.getErrorMessage(error, '启动会话失败');
-        if (this.isNotebookPathIssue(message)) {
-          const recovered = await this.recoverSessionAfterPathError();
-          if (recovered) {
-            this.showMessage('路径异常已恢复，已使用新的会话地址');
-            return;
-          }
+        this.bootstrapError = message;
+        if (showErrorToast) {
+          this.showMessage(message, 'error');
         }
-        this.showMessage(message, 'error');
       } finally {
         this.sessionLoading = false;
+        this.isBootstrapping = false;
       }
     },
-    async stopSession() {
-      if (!this.researchId || !this.session) {
-        return;
-      }
-      this.sessionLoading = true;
-      try {
-        const sessionId = String(this.session?.session_id || '').trim();
-        const stopPayload = {};
-        if (sessionId) {
-          stopPayload.session_id = sessionId;
-        }
-        await stopNotebookSession(this.researchId, stopPayload);
-        await this.disconnectNotebookIframe();
-        this.session = null;
-        this.iframeLoading = false;
-        await this.refreshSessionStatus(true);
-        this.showMessage('会话已结束');
-      } catch (error) {
-        this.showMessage(this.getErrorMessage(error, '结束会话失败'), 'error');
-      } finally {
-        this.sessionLoading = false;
-      }
-    },
-    async disconnectNotebookIframe() {
+    isNotebookUiReady() {
       const frame = this.$refs.notebookFrame;
       if (!frame) {
-        return;
+        return false;
       }
       try {
-        frame.src = 'about:blank';
+        const frameDocument = frame.contentDocument || frame.contentWindow?.document;
+        if (!frameDocument) {
+          return false;
+        }
+        const body = frameDocument.body;
+        if (!body) {
+          return false;
+        }
+
+        const hasLabShell = Boolean(
+          frameDocument.querySelector('.jp-LabShell')
+          || frameDocument.querySelector('#jp-main-dock-panel')
+          || frameDocument.querySelector('.jp-FileBrowser')
+          || frameDocument.querySelector('.jp-Launcher')
+          || frameDocument.querySelector('.jp-NotebookPanel')
+        );
+        if (hasLabShell) {
+          return true;
+        }
+
+        const bodyText = String(body.innerText || '').trim();
+        if (bodyText && bodyText.length > 20 && !/loading|starting|kernel/i.test(bodyText)) {
+          return true;
+        }
       } catch (error) {
-        // Ignore iframe teardown errors.
+        return true;
       }
-      await new Promise((resolve) => {
-        setTimeout(resolve, 350);
-      });
+      return false;
+    },
+    clearIframeReadyTimer() {
+      if (this.iframeReadyTimer) {
+        clearInterval(this.iframeReadyTimer);
+        this.iframeReadyTimer = null;
+      }
+    },
+    beginIframeReadyWatch() {
+      this.clearIframeReadyTimer();
+      const startedAt = Date.now();
+      const tick = () => {
+        if (!this.hasNotebookSession) {
+          this.clearIframeReadyTimer();
+          return;
+        }
+        if (this.isNotebookUiReady()) {
+          this.iframeReady = true;
+          this.iframeLoading = false;
+          this.clearIframeReadyTimer();
+          return;
+        }
+        if (Date.now() - startedAt >= 30000) {
+          this.iframeReady = true;
+          this.iframeLoading = false;
+          this.clearIframeReadyTimer();
+        }
+      };
+      tick();
+      this.iframeReadyTimer = setInterval(tick, 300);
     },
     async handleIframeLoad() {
-      this.iframeLoading = false;
+      this.iframeReady = false;
+      this.iframeLoading = true;
+      this.beginIframeReadyWatch();
       if (this.iframePathRecoveryTried || !this.hasNotebookSession) {
         return;
       }
@@ -570,7 +466,6 @@ export default {
           || ''
         ).toLowerCase();
       } catch (error) {
-        // 跨域 iframe 无法读取内容，直接跳过该检测。
         return;
       }
       if (!this.isNotebookPathIssue(pageText)) {
@@ -583,13 +478,15 @@ export default {
         this.showMessage('路径异常已恢复，已使用新的会话地址');
         return;
       }
-      this.showMessage('Notebook 路径异常，重建会话失败', 'error');
+      this.bootstrapError = 'Notebook 路径异常，重建会话失败';
+      this.showMessage(this.bootstrapError, 'error');
     }
   },
   async mounted() {
-    await this.bootstrap();
+    await this.bootstrap(false);
   },
   beforeUnmount() {
+    this.clearIframeReadyTimer();
     if (this.toastTimer) {
       clearTimeout(this.toastTimer);
       this.toastTimer = null;
@@ -600,421 +497,149 @@ export default {
 
 <style scoped>
 .research-notebook-page {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  --notebook-offset: 260px;
-}
-
-.research-notebook-page.header-collapsed {
-  --notebook-offset: 180px;
-}
-
-.research-notebook-page.is-fullscreen {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  background: #fff;
-  gap: 0;
-  --notebook-offset: 0;
-}
-
-.research-notebook-page.is-fullscreen .notebook-main {
-  height: 100vh;
-}
-
-.research-notebook-page.is-fullscreen .iframe-card {
-  height: 100%;
-  border-radius: 0;
-  border: none;
-}
-
-.research-notebook-page.is-fullscreen .iframe-wrap {
-  height: calc(100vh - 50px);
-}
-
-.research-notebook-page.is-fullscreen .notebook-iframe {
-  height: calc(100vh - 50px);
-}
-
-.page-header {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px 16px;
-  border-radius: 4px;
-  border: 1px solid #e0e0e0;
-  background: #fafafa;
-  overflow: hidden;
-}
-
-.top-line {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-}
-
-.top-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.header-toggle-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 2px;
-  border: 1px solid #d0d0d0;
-  background: #ffffff;
-  color: #000;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-}
-
-.header-toggle-btn:hover {
-  background: #f5f5f5;
-  border-color: #999;
-}
-
-.header-toggle-btn .toggle-icon {
-  display: inline-block;
-  width: 18px;
-  height: 18px;
-  transform: rotate(180deg);
-  transition: transform 0.2s ease;
-}
-
-.header-toggle-btn.is-collapsed .toggle-icon {
-  transform: rotate(0deg);
-}
-
-.title-inline {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-.title-inline h2 {
-  margin: 0;
-  font-size: 17px;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.sub-inline {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: #64748b;
-}
-
-.meta-item {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.meta-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 6px;
-  border-radius: 2px;
-  border: 1px solid #d0d0d0;
-  background: #f5f5f5;
-  color: #666;
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.id-muted {
-  color: #94a3b8;
-}
-
-.header-expandable {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 260px;
-  opacity: 1;
-  transition: max-height 0.24s ease, opacity 0.2s ease, margin-top 0.2s ease;
-}
-
-.page-header.is-collapsed .header-expandable {
-  max-height: 0;
-  opacity: 0;
-  margin-top: -4px;
-  pointer-events: none;
-}
-
-.info-line {
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 14px;
-}
-
-.info-item,
-.session-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.info-label {
-  color: #64748b;
-  font-size: 12px;
-  flex-shrink: 0;
-}
-
-.info-value {
-  color: #1e293b;
-  font-size: 12px;
-  min-width: 0;
-}
-
-.header-error {
-  width: 100%;
-  margin: 0;
-}
-
-.session-line {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  padding-top: 2px;
-}
-
-.session-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 14px;
-  min-width: 0;
-}
-
-.actions-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.notebook-main {
-  min-width: 0;
-  display: block;
-}
-
-.iframe-card {
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.iframe-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e0e0e0;
-  background: #fafafa;
-}
-
-.iframe-head h3 {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-  color: #000;
-}
-
-.btn-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid #d0d0d0;
-  background: #fff;
-  border-radius: 2px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  padding: 0;
-}
-
-.btn-icon:hover {
-  background: #f5f5f5;
-  border-color: #999;
-}
-
-.btn-icon .icon {
-  width: 16px;
-  height: 16px;
-  color: #666;
-}
-
-.iframe-wrap {
   position: relative;
-  min-height: calc(100vh - var(--notebook-offset));
+  height: calc(100vh - 72px);
+  min-height: 560px;
+  overflow: hidden;
+  border-radius: 16px;
+  background:
+    radial-gradient(circle at top left, rgba(227, 242, 253, 0.95), rgba(227, 242, 253, 0) 30%),
+    linear-gradient(180deg, #f8fbff 0%, #eef4f8 100%);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, 0.08);
+}
+
+.iframe-shell {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.72);
+  overflow: hidden;
 }
 
 .notebook-iframe {
   width: 100%;
-  min-height: calc(100vh - var(--notebook-offset));
+  height: 100%;
   border: 0;
   background: #fff;
+  opacity: 1;
+  transition: opacity 0.18s ease;
 }
 
-.iframe-empty {
-  min-height: calc(100vh - var(--notebook-offset));
-  display: grid;
-  place-content: center;
-  gap: 10px;
-  text-align: center;
-  color: #64748b;
+.iframe-shell.is-loading .notebook-iframe {
+  opacity: 0;
 }
 
-.iframe-loading {
+.iframe-loading-mask {
   position: absolute;
   inset: 0;
-  background: rgba(248, 250, 252, 0.82);
-  display: grid;
-  place-items: center;
-  color: #334155;
-  font-size: 13px;
   z-index: 2;
-}
-
-.inline-error {
-  background: #ffebee;
-  border: 1px solid #ef5350;
-  color: #c62828;
-  padding: 10px 12px;
-  border-radius: 2px;
-  margin-bottom: 10px;
-  font-size: 12px;
-}
-
-.status-chip {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  padding: 2px 8px;
-  border-radius: 2px;
-  font-size: 12px;
+  justify-content: center;
+  padding: 24px;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, 0.96), rgba(241, 245, 249, 0.96)),
+    radial-gradient(circle at top left, rgba(191, 219, 254, 0.55), rgba(191, 219, 254, 0) 35%);
+  backdrop-filter: blur(2px);
+}
+
+.loading-card {
+  width: min(420px, 100%);
+  padding: 28px 24px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  box-shadow: 0 22px 60px rgba(15, 23, 42, 0.12);
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 44px;
+  height: 44px;
+  margin: 0 auto 16px;
+  border-radius: 999px;
+  border: 3px solid rgba(148, 163, 184, 0.3);
+  border-top-color: #0f172a;
+  animation: spin 0.9s linear infinite;
+}
+
+.loading-title {
+  color: #0f172a;
+  font-size: 18px;
   font-weight: 600;
-  border: 1px solid;
 }
 
-.status-chip.is-draft {
-  color: #666;
-  background: #f5f5f5;
-  border-color: #d0d0d0;
+.loading-text {
+  margin: 10px 0 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.7;
 }
 
-.status-chip.is-active {
-  color: #2e7d32;
-  background: #e8f5e9;
-  border-color: #66bb6a;
+.state-shell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 24px;
 }
 
-.status-chip.is-archived {
-  color: #f57c00;
-  background: #fff3e0;
-  border-color: #ffb74d;
+.state-card {
+  width: min(440px, 100%);
+  padding: 28px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.1);
+  text-align: center;
 }
 
-.status-chip.is-error {
-  color: #d32f2f;
-  background: #ffebee;
-  border-color: #ef5350;
+.state-title {
+  margin-bottom: 10px;
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 600;
 }
 
-.btn {
-  border: 1px solid #d0d0d0;
-  background: #fff;
-  color: #000;
-  padding: 6px 12px;
-  border-radius: 2px;
-  font-size: 12px;
-  font-weight: 500;
+.state-text {
+  margin: 0;
+  color: #475569;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.state-action {
+  margin-top: 18px;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 14px;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: opacity 0.18s ease;
 }
 
-.btn:hover:not(:disabled) {
-  border-color: #999;
-  background: #f5f5f5;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-primary {
-  background: #1976d2;
-  color: #fff;
-  border-color: #1976d2;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #1565c0;
-  border-color: #1565c0;
-}
-
-.btn-secondary {
-  background: #fff;
-}
-
-.btn-danger {
-  color: #d32f2f;
-  border-color: #ef5350;
-  background: #fff;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: #ffebee;
-  border-color: #e53935;
-}
-
-.toast {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  min-width: 180px;
-  max-width: 360px;
-  border-radius: 10px;
-  padding: 10px 12px;
-  color: #fff;
-  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.24);
-  z-index: 1200;
-}
-
-.toast.success {
-  background: #16a34a;
-}
-
-.toast.error {
-  background: #dc2626;
+.state-action:disabled {
+  opacity: 0.65;
+  cursor: default;
 }
 
 .toast-enter-active,
 .toast-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.loading-fade-enter-active,
+.loading-fade-leave-active {
+  transition: opacity 0.22s ease;
+}
+
+.loading-fade-enter-from,
+.loading-fade-leave-to {
+  opacity: 0;
 }
 
 .toast-enter-from,
@@ -1023,40 +648,61 @@ export default {
   transform: translateY(8px);
 }
 
-@media (max-width: 1200px) {
-  .iframe-wrap,
-  .iframe-empty,
-  .notebook-iframe {
-    min-height: 70vh;
+.toast {
+  position: absolute;
+  right: 20px;
+  bottom: 20px;
+  z-index: 3;
+  padding: 10px 14px;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 13px;
+  box-shadow: 0 12px 36px rgba(15, 23, 42, 0.2);
+}
+
+.toast.success {
+  background: rgba(22, 101, 52, 0.92);
+}
+
+.toast.error {
+  background: rgba(185, 28, 28, 0.92);
+}
+
+@media (max-width: 768px) {
+  .research-notebook-page {
+    height: calc(100vh - 64px);
+    min-height: 480px;
+    border-radius: 12px;
+  }
+
+  .state-shell {
+    padding: 16px;
+  }
+
+  .state-card {
+    padding: 22px 18px;
+    border-radius: 16px;
+  }
+
+  .iframe-loading-mask,
+  .toast {
+    right: 14px;
+    left: 14px;
+    width: auto;
+  }
+
+  .loading-card {
+    padding: 24px 18px;
+    border-radius: 16px;
   }
 }
 
-@media (max-width: 760px) {
-  .top-line {
-    width: 100%;
-    align-items: flex-start;
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
   }
-
-  .title-inline {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-  }
-
-  .session-line {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .actions-row {
-    width: 100%;
-    flex-wrap: wrap;
-  }
-
-  .top-actions {
-    width: 100%;
-    justify-content: flex-start;
-    flex-wrap: wrap;
+  to {
+    transform: rotate(360deg);
   }
 }
 </style>

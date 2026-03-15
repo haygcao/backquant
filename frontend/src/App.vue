@@ -72,7 +72,11 @@
       </aside>
 
       <main class="app-main" :class="{ 'with-sidebar': showSidebar }">
-        <router-view />
+        <ResearchNotebook
+          v-if="isAuthenticated"
+          v-show="isResearchWorkbenchRoute"
+        />
+        <router-view v-if="!isResearchWorkbenchRoute" />
       </main>
     </div>
   </div>
@@ -80,9 +84,13 @@
 
 <script>
 import axiosInstance from '@/utils/axios';
+import ResearchNotebook from '@/pages/ResearchNotebook.vue';
 
 export default {
   name: 'App',
+  components: {
+    ResearchNotebook
+  },
   data() {
     return {
       isAuthenticated: false,
@@ -139,6 +147,9 @@ export default {
         return this.topNavItems.filter((item) => item.id !== 'login');
       }
       return this.topNavItems.filter((item) => item.id === 'login');
+    },
+    isResearchWorkbenchRoute() {
+      return String(this.$route.path || '') === '/research';
     }
   },
   watch: {
